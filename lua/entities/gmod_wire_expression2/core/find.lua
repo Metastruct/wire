@@ -59,6 +59,7 @@ local forbidden_classes = {
 	["player_manager"] = true,
 	["predicted_viewmodel"] = true,
 	["gmod_ghost"] = true,
+	["coin"] = true,
 }
 local function filter_default(self)
 	local chip = self.entity
