@@ -26,8 +26,8 @@ if SERVER then
 	AddCSLuaFile("autorun/wire_load.lua")
 
 	-- shared includes
-	AddCSLuaFile("wire/wire_paths.lua")
 	AddCSLuaFile("wire/wireshared.lua")
+	AddCSLuaFile("wire/beam_netvars.lua")
 	AddCSLuaFile("wire/wiregates.lua")
 	AddCSLuaFile("wire/wiremonitors.lua")
 	AddCSLuaFile("wire/gpulib.lua")
@@ -86,7 +86,7 @@ end
 
 -- shared includes
 include("wire/wireshared.lua")
-include("wire/wire_paths.lua")
+include("wire/beam_netvars.lua")
 include("wire/wiregates.lua")
 include("wire/wiremonitors.lua")
 include("wire/gpulib.lua")
@@ -126,7 +126,7 @@ if CLIENT then
 	include("wire/client/rendertarget_fix.lua")
 	include("wire/client/hlzasm/hc_compiler.lua")
 	include("wire/client/customspawnmenu.lua")
-
+	
 end
 
 -- Load UWSVN, done here so its definitely after Wire is loaded.
