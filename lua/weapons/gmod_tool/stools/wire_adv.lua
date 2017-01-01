@@ -307,7 +307,7 @@ elseif CLIENT then
 	TOOL.ShowEntity = false -- bool for showing "Create Entity" output
 
 	function TOOL:Holster()
-		if IsValid(self.CurrentEntity) then self.CurrentEntity:SetNWString("BlinkWire", "") end
+		if IsValid(self.CurrentEntity) then self.CurrentEntity:SetNetworkedBeamString("BlinkWire", "") end
 		self.CurrentEntity = nil
 		self.Wiring = {}
 		self.WiringRender = {}
@@ -625,7 +625,7 @@ elseif CLIENT then
 			end
 
 			if oldport ~= self.CurrentWireIndex then
-				ent:SetNWString("BlinkWire", check[self.CurrentWireIndex][1])
+				ent:SetNetworkedBeamString("BlinkWire", check[self.CurrentWireIndex][1])
 				self:GetOwner():EmitSound("weapons/pistol/pistol_empty.wav")
 			end
 			return true
@@ -697,7 +697,7 @@ elseif CLIENT then
 
 			-- Clear blinking wire
 			if IsValid( self.AimingEnt ) then
-				self.AimingEnt:SetNWString("BlinkWire", "")
+				self.AimingEnt:SetNetworkedBeamString("BlinkWire", "")
 			end
 
 			if IsValid( ent ) then
@@ -718,7 +718,7 @@ elseif CLIENT then
 
 					-- Set blinking wire
 					if check[self.CurrentWireIndex] then
-						ent:SetNWString("BlinkWire", check[self.CurrentWireIndex][1])
+						ent:SetNetworkedBeamString("BlinkWire", check[self.CurrentWireIndex][1])
 					end
 				end
 			end
