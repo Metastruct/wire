@@ -1815,7 +1815,7 @@ function Editor:LoadFile(Line, forcenewtab)
 				end
 			end
 		end
-		if not self.chip then
+
 			local title, tabtext = getPreferredTitles(Line, str)
 			local tab
 			if self.NewTabOnOpen:GetBool() or forcenewtab then
@@ -1827,7 +1827,7 @@ function Editor:LoadFile(Line, forcenewtab)
 			end
 			self:SetActiveTab(tab)
 			self:ChosenFile(Line)
-		end
+
 		self:SetCode(str)
 	end
 end

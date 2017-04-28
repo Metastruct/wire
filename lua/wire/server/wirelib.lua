@@ -1083,7 +1083,7 @@ function WireLib.CanModel(player, model, skin)
 	if not util.IsValidModel(model) then return false end
 	if skin ~= nil then
 		local count = WireLib.NumModelSkins(model)
-		if count and count <= skin then return false end
+		if skin < 0 or (count and skin >= count) then return false end
 	end
 	if IsValid(player) and player:IsPlayer() and not hook.Run("PlayerSpawnObject", player, model, skin) then return false end
 	return true
@@ -1195,14 +1195,6 @@ function WireLib.GetVersion()
 	-- If we've already found our version just return that again
 	if cachedversion then return cachedversion end
 
-	-- Check if we're Workshop version first
-	for k, addon in pairs(engine.GetAddons()) do
-		if addon.wsid == "160250458" then
-			cachedversion = "Workshop"
-			return cachedversion
-		end
-	end
-
 	-- Find what our legacy folder is called
 	local wirefolder = "addons/wire"
 	if not file.Exists(wirefolder, "GAME") then
@@ -1228,6 +1220,14 @@ function WireLib.GetVersion()
 			end
 		else
 			cachedversion = "Extracted"
+		end
+	end
+
+	-- Check if we're Workshop version first
+	for k, addon in pairs(engine.GetAddons()) do
+		if addon.wsid == "160250458" then
+			cachedversion = "Workshop"
+			return cachedversion
 		end
 	end
 
