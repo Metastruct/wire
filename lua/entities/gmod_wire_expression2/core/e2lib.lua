@@ -47,6 +47,28 @@ function E2Lib.setAng(ent, ang)
 	return ent:SetAngles(ang)
 end
 
+--Blacklist format:
+--<top folder the material is in>[%./\\]+<material name>
+--Should prevent work-arounds like pp/./copy pp/./././copy pp\\copy etc.
+local material_blacklist = {
+	"pp[%./\\]+copy"
+}
+local function validMaterial(material)
+	local lower = string.lower(material)
+	for _, v in ipairs(material_blacklist) do
+		if string.find(lower, v) then return "" end
+	end
+	return material
+end
+
+function E2Lib.setMaterial(ent, material)
+	ent:SetMaterial(validMaterial(material))
+end
+
+function E2Lib.setSubMaterial(ent, index, material)
+	ent:SetSubMaterial(index,validMaterial(material))
+end
+
 -- getHash
 -- Returns a hash for the given string
 

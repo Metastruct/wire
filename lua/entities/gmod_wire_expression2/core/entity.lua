@@ -89,6 +89,11 @@ e2function number entity:id()
 	return this:EntIndex()
 end
 
+e2function number entity:creationID()
+	if not IsValid(this) then return 0 end
+	return this:GetCreationID()
+end
+
 /******************************************************************************/
 // Functions getting string
 
@@ -374,15 +379,13 @@ __e2setcost(10)
 e2function void entity:setMaterial(string material)
 	if not IsValid(this) then return end
 	if not isOwner(self, this) then return end
-	if string.lower(material) == "pp/copy" then return end
-	this:SetMaterial(material)
+	E2Lib.setMaterial(this, material)
 end
 
 e2function void entity:setSubMaterial(index, string material)
 	if not IsValid(this) then return end
 	if not isOwner(self, this) then return end
-	if string.lower(material) == "pp/copy" then return end
-	this:SetSubMaterial(index-1,material)
+	E2Lib.setSubMaterial(this, index-1, material)
 end
 
 --- Gets <this>'s current skin number.
@@ -442,26 +445,27 @@ end
 
 __e2setcost(30) -- temporary
 
-local check = WireLib.checkForce
+local clamp = WireLib.clampForce
 
 e2function void entity:applyForce(vector force)
 	if not validPhysics(this) then return nil end
 	if not isOwner(self, this) then return nil end
 
-	if check( force ) then
-		local phys = this:GetPhysicsObject()
-		phys:ApplyForceCenter(Vector(force[1],force[2],force[3]))
-	end
+	force = clamp(force)
+
+	local phys = this:GetPhysicsObject()
+	phys:ApplyForceCenter(Vector(force[1],force[2],force[3]))
 end
 
 e2function void entity:applyOffsetForce(vector force, vector position)
 	if not validPhysics(this) then return nil end
 	if not isOwner(self, this) then return nil end
 
-	if check(force) and check(position) then
-		local phys = this:GetPhysicsObject()
-		phys:ApplyForceOffset(Vector(force[1],force[2],force[3]), Vector(position[1],position[2],position[3]))
-	end
+	force 		= clamp(force)
+	position 	= clamp(position)
+
+	local phys = this:GetPhysicsObject()
+	phys:ApplyForceOffset(Vector(force[1],force[2],force[3]), Vector(position[1],position[2],position[3]))
 end
 
 e2function void entity:applyAngForce(angle angForce)
@@ -469,7 +473,7 @@ e2function void entity:applyAngForce(angle angForce)
 	if not isOwner(self, this) then return nil end
 
 	if angForce[1] == 0 and angForce[2] == 0 and angForce[3] == 0 then return end
-	if not check(angForce) then return end
+	angForce = clamp(angForce)
 
 	local phys = this:GetPhysicsObject()
 
@@ -506,7 +510,7 @@ e2function void entity:applyTorque(vector torque)
 	if not isOwner(self, this) then return end
 
 	if torque[1] == 0 and torque[2] == 0 and torque[3] == 0 then return end
-	if not check( torque ) then return end
+	torque = clamp(torque)
 
 	local phys = this:GetPhysicsObject()
 
@@ -527,7 +531,9 @@ e2function void entity:applyTorque(vector torque)
 
 	local dir = ( tq:Cross(off) ):GetNormal()
 
-	if not check( dir ) or not check( off ) then return end
+	dir = clamp(dir)
+	off = clamp(off)
+
 	phys:ApplyForceOffset( dir, off )
 	phys:ApplyForceOffset( dir * -1, off * -1 )
 end
