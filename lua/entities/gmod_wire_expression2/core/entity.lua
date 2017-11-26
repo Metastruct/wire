@@ -215,6 +215,11 @@ e2function number entity:health()
 	return this:Health()
 end
 
+e2function number entity:maxHealth()
+	if not IsValid(this) then return 0 end
+	return this:GetMaxHealth()
+end
+
 e2function number entity:radius()
 	if not IsValid(this) then return 0 end
 	return this:BoundingRadius()
@@ -323,7 +328,7 @@ e2function number entity:isVehicle()
 end
 
 e2function number entity:isWorld()
-	if not IsValid(this) then return 0 end
+	if not isentity(this) then return 0 end
 	if this:IsWorld() then return 1 else return 0 end
 end
 
