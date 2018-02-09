@@ -17,5 +17,8 @@ include("core/e2lib.lua")
 include("base/preprocessor.lua")
 include("base/tokenizer.lua")
 include("base/parser.lua")
+if SERVER then
+	include("base/optimizer.lua")
+end
 include("base/compiler.lua")
 include('core/init.lua')

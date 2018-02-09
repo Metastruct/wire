@@ -4,7 +4,7 @@ E2Lib = {}
 
 local type = type
 local function checkargtype(argn, value, argtype)
-	if type(value) ~= argtype then error(string.format("bad argument #%d to 'E2Lib.%s' (%s expected, got %s)", argn, debug.getinfo(2, "n").name, argtype, type(text)), 2) end
+	if type(value) ~= argtype then error(string.format("bad argument #%d to 'E2Lib.%s' (%s expected, got %s)", argn, debug.getinfo(2, "n").name, argtype, type(value)), 2) end
 end
 
 -- -------------------------- Helper functions -----------------------------
@@ -47,26 +47,13 @@ function E2Lib.setAng(ent, ang)
 	return ent:SetAngles(ang)
 end
 
---Blacklist format:
---<top folder the material is in>[%./\\]+<material name>
---Should prevent work-arounds like pp/./copy pp/./././copy pp\\copy etc.
-local material_blacklist = {
-	"pp[%./\\]+copy"
-}
-local function validMaterial(material)
-	local lower = string.lower(material)
-	for _, v in ipairs(material_blacklist) do
-		if string.find(lower, v) then return "" end
-	end
-	return material
-end
 
 function E2Lib.setMaterial(ent, material)
-	ent:SetMaterial(validMaterial(material))
+	ent:SetMaterial(WireLib.IsValidMaterial(material))
 end
 
 function E2Lib.setSubMaterial(ent, index, material)
-	ent:SetSubMaterial(index,validMaterial(material))
+	ent:SetSubMaterial(index,WireLib.IsValidMaterial(material))
 end
 
 -- getHash
@@ -178,6 +165,7 @@ function E2Lib.validPhysics(entity)
 	return false
 end
 
+-- This function gets wrapped when CPPI is detected, see very end of this file
 function E2Lib.getOwner(self, entity)
 	if entity == nil then return end
 	if entity == self.entity or entity == self.player then return self.player end
@@ -213,6 +201,7 @@ function E2Lib.abuse(ply)
 	error("abuse", 0)
 end
 
+-- This function gets replaced when CPPI is detected, see very end of this file
 function E2Lib.isFriend(owner, player)
 	return owner == player
 end
@@ -259,11 +248,11 @@ local table_length_lookup = {
 function E2Lib.guess_type(value)
 	if IsValid(value) then return "e" end
 	if value.EntIndex then return "e" end
-	local vtype = type(v)
+	local vtype = type(value)
 	if type_lookup[vtype] then return type_lookup[vtype] end
 	if vtype == "table" then
-		if table_length_lookup[#v] then return table_length_lookup[#v] end
-		if v.HitPos then return "xrd" end
+		if table_length_lookup[#value] then return table_length_lookup[#value] end
+		if value.HitPos then return "xrd" end
 	end
 
 	for typeid, v in pairs(wire_expression_types2) do
@@ -754,6 +743,7 @@ hook.Add("InitPostEntity", "e2lib", function()
 		if debug.getregistry().Entity.CPPIGetOwner then
 			local _getOwner = E2Lib.getOwner
 			E2Lib.replace_function("getOwner", function(self, entity)
+				if not IsValid(entity) then return end
 				if entity == self.entity or entity == self.player then return self.player end
 
 				local owner = entity:CPPIGetOwner()

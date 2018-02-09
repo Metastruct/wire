@@ -95,9 +95,19 @@ function ENT:Initialize()
 
 		-- Entity
 		"Entity [ENTITY]",
+
+		-- Driver
+		"Driver [ENTITY]"
 	}
 
-	self.Inputs = WireLib.CreateInputs( self, { "Lock", "Terminate", "Strip weapons", "Eject", "Disable", "Crosshairs", "Brake", "Allow Buttons", "Relative", "Damage Health", "Damage Armor", "Hide Player", "Hide HUD"} )
+	local inputs = {
+		"Lock", "Terminate", "Strip weapons", "Eject",
+		"Disable", "Crosshairs", "Brake", "Allow Buttons",
+		"Relative", "Damage Health", "Damage Armor", "Hide Player", "Hide HUD",
+		"Vehicle [ENTITY]"
+	}
+
+	self.Inputs = WireLib.CreateInputs( self, inputs )
 	self.Outputs = WireLib.CreateOutputs( self, outputs )
 
 	self:SetLocked( false )
@@ -112,7 +122,7 @@ function ENT:Initialize()
 
 	self:SetActivated( false )
 
-	self:SetColor(Color(255,0,0,self:GetColor().a))
+	self:ColorByLinkStatus(self.LINK_STATUS_UNLINKED)
 
 	self:SetOverlayText( "Pod Controller" )
 end
@@ -128,11 +138,7 @@ end
 function ENT:SetActivated( b )
 	if (self.Activated == b) then return end
 
-	if b then
-		self:SetColor(Color(0,255,0,self:GetColor().a))
-	else
-		self:SetColor(Color(255,0,0,self:GetColor().a))
-	end
+	self:ColorByLinkStatus(b and self.LINK_STATUS_ACTIVE or self.LINK_STATUS_LINKED)
 
 	self.Activated = b
 	WireLib.TriggerOutput(self, "Active", b and 1 or 0)
@@ -164,24 +170,50 @@ function ENT:SetHidePlayer( b )
 end
 
 function ENT:LinkEnt( pod )
+	pod = WireLib.GetClosestRealVehicle(pod,self:GetPos(),self:GetPlayer())
+
+	-- if pod is still not a vehicle even after all of the above, then error out
 	if not IsValid(pod) or not pod:IsVehicle() then return false, "Must link to a vehicle" end
+
 	self:SetPod( pod )
 	WireLib.SendMarks(self, {pod})
 	return true
 end
 function ENT:UnlinkEnt()
+	if IsValid(self.Pod) then
+		self.Pod:RemoveCallOnRemove("wire_pod_remove")
+	end
 	self.Pod = nil
 	WireLib.SendMarks(self, {})
 	WireLib.TriggerOutput( self, "Entity", NULL )
+	self:ColorByLinkStatus(self.LINK_STATUS_UNLINKED)
 	return true
+end
+function ENT:OnRemove()
+	self:UnlinkEnt()
 end
 
 function ENT:HasPod() return (self.Pod and self.Pod:IsValid()) end
 function ENT:GetPod() return self.Pod end
 function ENT:SetPod( pod )
 	if (pod and pod:IsValid() and !pod:IsVehicle()) then return false end
+
+	if self:HasPly() then
+		self:PlayerExited(self:GetPly())
+	else
+		self:ColorByLinkStatus(IsValid(pod) and self.LINK_STATUS_LINKED or self.LINK_STATUS_UNLINKED)
+	end
+
 	self.Pod = pod
 	WireLib.TriggerOutput( self, "Entity", pod )
+	pod:CallOnRemove("wire_pod_remove",function()
+		self:UnlinkEnt(pod)
+	end)
+
+	if IsValid(pod:GetDriver()) then
+		self:PlayerEntered(pod:GetDriver())
+	end
+
 	return true
 end
 
@@ -194,6 +226,7 @@ end
 function ENT:SetPly( ply )
 	if (ply and ply:IsValid() and !ply:IsPlayer()) then return false end
 	self.Ply = ply
+	WireLib.TriggerOutput( self, "Driver", ply )
 	return true
 end
 
@@ -324,6 +357,10 @@ function ENT:TriggerInput( name, value )
 		self:SetHidePlayer( value != 0 )
 	elseif (name == "Hide HUD") then
 		self:SetHideHUD( value ~= 0 )
+	elseif (name == "Vehicle") then
+		if IsValid(value) then -- only link if the input is valid. that way, it won't be unlinked if the wire is disconnected
+			self:LinkEnt(value)
+		end
 	end
 end
 
@@ -384,29 +421,11 @@ function ENT:Think()
 		-- Button pressing
 		if (self.AllowButtons and distance < 82) then
 			local button = trace.Entity
-			if IsValid(button) and (ply:KeyDown( IN_ATTACK ) and !self.MouseDown) then
-				if button:GetClass() == "gmod_wire_lever" then
-					// The parented lever doesn't have a great serverside hitbox, so this isn't flawless
-					self.MouseDown = true
-					button:Use(ply, ply, USE_ON, 0)
-				elseif button:GetClass() == "gmod_wire_button" || button:GetClass() == "gmod_wire_dynamic_button" then
-					self.MouseDown = true
-					if (button.toggle) then
-						if (button:GetOn()) then
-							button:Switch( false )
-						else
-							button.EntToOutput = ply
-							button.PrevUser = ply
-							button:Switch( true )
-						end
-					else
-						button.PrevUser = ply
-						button.podpress = true
-						button.EntToOutput = ply
-						button:Switch( true )
-					end
-				end
-			elseif (!ply:KeyDown( IN_ATTACK ) and self.MouseDown) then
+			if IsValid(button) and (ply:KeyDown( IN_ATTACK ) and not self.MouseDown) and button.Use then
+				-- Generic support (Buttons, Dynamic Buttons, Levers, EGP screens, etc)
+				self.MouseDown = true
+				button:Use(ply, self, USE_ON, 0)
+			elseif not ply:KeyDown( IN_ATTACK ) and self.MouseDown then
 				self.MouseDown = false
 			end
 		end

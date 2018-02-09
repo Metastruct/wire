@@ -2,6 +2,21 @@
   Expression 2 built-in ranger/tracing extension
 \******************************************************************************/
 
+-- Register the type up here before the Extension Registration so that the Wire Ranger still works
+registerType("ranger", "xrd", nil,
+	nil,
+	nil,
+	function(retval)
+		if retval == nil then return end
+		if !istable(retval) then error("Return value is neither nil nor a table, but a "..type(retval).."!",0) end
+	end,
+	function(v)
+		return !istable(v) or not v.HitPos
+	end
+)
+
+/******************************************************************************/
+
 E2Lib.RegisterExtension("ranger", true, "Lets E2 chips trace rays and check for collisions.")
 
 -------------------
@@ -82,7 +97,7 @@ local function ranger(self, rangertype, range, p1, p2, hulltype, mins, maxs, tra
 			tracedata.endpos = tracedata.start + chip:GetUp()*range
 		end
 	end
-	
+
 	-- clamp positions
 	tracedata.start = E2Lib.clampPos( tracedata.start )
 	if tracedata.start:Distance( tracedata.endpos ) > 57000 then -- 57000 is slightly larger than the diagonal distance (min corner to max corner) of the source max map size
@@ -104,7 +119,7 @@ local function ranger(self, rangertype, range, p1, p2, hulltype, mins, maxs, tra
 			tracedata.mins = s1
 			tracedata.maxs = s2
 		end
-		
+
 		if not entities then -- unfortunately we have to add tons of ops if this happens
 							 -- If we didn't, it would be possible to crash servers with it.
 			tracedata.mins = E2Lib.clampPos( tracedata.mins )
@@ -131,20 +146,6 @@ local function ranger(self, rangertype, range, p1, p2, hulltype, mins, maxs, tra
 
 	return trace
 end
-
-/******************************************************************************/
-
-registerType("ranger", "xrd", nil,
-	nil,
-	nil,
-	function(retval)
-		if retval == nil then return end
-		if !istable(retval) then error("Return value is neither nil nor a table, but a "..type(retval).."!",0) end
-	end,
-	function(v)
-		return !istable(v) or not v.HitPos
-	end
-)
 
 /******************************************************************************/
 

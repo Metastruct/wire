@@ -9,11 +9,13 @@ function ENT:Initialize()
 	self:PhysicsInit( SOLID_VPHYSICS )
 	self:SetMoveType( MOVETYPE_VPHYSICS )
 	self:SetSolid( SOLID_VPHYSICS )
-	
+
 	self.Inputs = Wire_CreateInputs( self, { "Throttle", "Steering", "Handbrake", "Engine", "Lock" } )
 end
 
 function ENT:LinkEnt( pod )
+	pod = WireLib.GetClosestRealVehicle(pod,self:GetPos(),self:GetPlayer())
+
 	if not IsValid(pod) or not pod:IsVehicle() then return false, "Must link to a vehicle" end
 	self.Vehicle = pod
 	WireLib.SendMarks(self, {pod})

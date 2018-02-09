@@ -37,7 +37,7 @@ local DEFAULT = {n={},ntypes={},s={},stypes={},size=0}
 
 registerType("table", "t", table.Copy(DEFAULT),
 	function(self, input)
-		if IsEmpty(input) then
+		if input.size == 0 then
 			return table.Copy(DEFAULT)
 		end
 		return input
@@ -366,12 +366,11 @@ e2function number table:count()
 	return this.size
 end
 
+__e2setcost(3)
 -- Returns the number of elements in the array-part of the table
 e2function number table:ncount()
 	return #this.n
 end
-
-__e2setcost(3)
 
 __e2setcost(1)
 -- Returns 1 if any value exists at the specified index, else 0

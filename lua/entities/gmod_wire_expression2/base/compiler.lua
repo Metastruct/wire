@@ -21,7 +21,7 @@ function Compiler:Error(message, instr)
 	error(message .. " at line " .. instr[2][1] .. ", char " .. instr[2][2], 0)
 end
 
-function Compiler:Process(root, inputs, outputs, persist, delta, includes) -- Took params out becuase it isnt used. 
+function Compiler:Process(root, inputs, outputs, persist, delta, includes) -- Took params out becuase it isnt used.
 	self.context = {}
 
 	self:InitScope() -- Creates global scope!
@@ -74,7 +74,7 @@ function tps_pretty(tps)
 end
 
 local function op_find(name)
-	return E2Lib.optable_inv[name]
+	return E2Lib.optable_inv[name] or "unknown?!"
 end
 
 --[[
@@ -522,7 +522,7 @@ function Compiler:InstrSET(args)
 
 		local rt = self:GetOperator(args, "idx", { tp, tp1, tp2 })
 
-		return { rt[1], ex, ex1, ex2, ScopeID }, rt[2]
+		return { rt[1], ex, ex1, ex2, nil }, rt[2]
 	else
 		if tp2 ~= args[6] then
 			self:Error("Indexing type mismatch, specified [" .. tps_pretty({ args[6] }) .. "] but value is [" .. tps_pretty({ tp2 }) .. "]", args)
@@ -648,45 +648,20 @@ function Compiler:InstrIWC(args)
 		self:Error("Connected operator (->" .. E2Lib.limitString(op, 10) .. ") can only be used on inputs or outputs", args)
 	end
 end
-
-function Compiler:InstrNUM(args)
+function Compiler:InstrLITERAL(args)
 	self.prfcounter = self.prfcounter + 0.5
-	RunString("E2Lib.Compiler.native = function() return " .. args[3] .. " end")
-	return { Compiler.native }, "n"
-end
-
-function Compiler:InstrNUMI(args)
-	self.prfcounter = self.prfcounter + 1
-	Compiler.native = { 0, tonumber(args[3]) }
-	RunString("local value = E2Lib.Compiler.native E2Lib.Compiler.native = function() return value end")
-	return { Compiler.native }, "c"
-end
-
-function Compiler:InstrNUMJ(args)
-	self.prfcounter = self.prfcounter + 1
-	Compiler.native = { 0, 0, tonumber(args[3]), 0 }
-	RunString("local value = E2Lib.Compiler.native E2Lib.Compiler.native = function() return value end")
-	return { Compiler.native }, "q"
-end
-
-function Compiler:InstrNUMK(args)
-	self.prfcounter = self.prfcounter + 1
-	Compiler.native = { 0, 0, 0, tonumber(args[3]) }
-	RunString("local value = E2Lib.Compiler.native E2Lib.Compiler.native = function() return value end")
-	return { Compiler.native }, "q"
-end
-
-function Compiler:InstrSTR(args)
-	self.prfcounter = self.prfcounter + 1.0
-	RunString(string.format("E2Lib.Compiler.native = function() return %q end", args[3]))
-	return { Compiler.native }, "s"
+	local value = args[3]
+	return { function() return value end }, args[4]
 end
 
 function Compiler:InstrVAR(args)
 	self.prfcounter = self.prfcounter + 1.0
 	local tp, ScopeID = self:GetVariableType(args, args[3])
-	RunString(string.format("E2Lib.Compiler.native = function(self) return self.Scopes[%i][%q] end", ScopeID, args[3])) -- This Line!
-	return { Compiler.native }, tp
+	local name = args[3]
+
+	return {function(self)
+		return self.Scopes[ScopeID][name]
+	end}, tp
 end
 
 function Compiler:InstrFEA(args)
@@ -783,7 +758,7 @@ function Compiler:InstrRETURNVOID(args)
 		self:Error("Return type mismatch: " .. tps_pretty(self.func_ret) .. " expected got, void", args)
 	end
 
-	return { self:GetOperator(args, "return", {})[1], Value, Type }
+	return { self:GetOperator(args, "return", {})[1], nil, nil }
 end
 
 function Compiler:InstrKVTABLE(args)
@@ -833,6 +808,7 @@ function Compiler:InstrSWITCH(args)
 
 	local cases = {}
 	local Cases = args[4]
+	local default
 	for i = 1, #Cases do
 		local case, block, prf_eq, eq = Cases[i][1], Cases[i][2], 0, nil
 		if case then -- The default will not have one

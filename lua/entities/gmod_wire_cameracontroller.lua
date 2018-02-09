@@ -273,8 +273,6 @@ if CLIENT then
 			-- If we switched on, set current positions and angles
 			if not enabled then
 				-- Copy them
-				curpos = Vector(pos.x,pos.y,pos.z)
-				curang = Angle(ang.p,ang.y,ang.r)
 				smoothpos = Vector(pos.x,pos.y,pos.z)
 				smoothang = Angle(ang.p,ang.y,ang.r)
 				curdistance = distance
@@ -327,6 +325,8 @@ function ENT:Initialize()
 	self.NextUpdateOutputs = 0
 
 	self:GetContraption()
+
+	self:ColorByLinkStatus(self.LINK_STATUS_UNLINKED)
 end
 
 --------------------------------------------------
@@ -392,6 +392,7 @@ end
 util.AddNetworkString( "wire_camera_controller_toggle" )
 function ENT:SyncSettings( ply, active )
 	if active == nil then active = self.Active end
+	if not IsValid(ply) then ply = self.Players end
 	net.Start( "wire_camera_controller_toggle" )
 		net.WriteBit( active )
 		net.WriteEntity( self )
@@ -406,20 +407,21 @@ function ENT:SyncSettings( ply, active )
 			net.WriteBit( self.DrawParent )
 			SendPositions( self.Position, self.Angle, self.Distance, self.Parent )
 		end
-	net.Send( ply or self.Players )
+	net.Send( ply )
 end
 
 
 util.AddNetworkString( "wire_camera_controller_sync" )
 function ENT:SyncPositions( ply )
 	if CurTime() < self.NextSync then return end
+	if not IsValid(ply) then ply = self.Players end
 
 	self.NextSync = CurTime() + 0.05
 
 	net.Start( "wire_camera_controller_sync" )
 		net.WriteEntity( self )
 		SendPositions( self.Position, self.Angle, self.Distance, self.Parent )
-	net.Send( ply or self.Players )
+	net.Send( ply )
 end
 
 
@@ -631,6 +633,7 @@ function ENT:DisableCam( ply )
 	if #self.Players == 0 then
 		WireLib.TriggerOutput(self, "On", 0)
 		self.Active = false
+		self:ColorByLinkStatus(self.LINK_STATUS_LINKED)
 	end
 end
 
@@ -660,6 +663,8 @@ function ENT:EnableCam( ply )
 
 		WireLib.TriggerOutput(self, "On", 1)
 		self.Active = true
+
+		self:ColorByLinkStatus(self.LINK_STATUS_ACTIVE)
 
 		self:SyncSettings( ply )
 	else -- No player specified, activate cam for everyone not already active
@@ -856,6 +861,8 @@ function ENT:ClearEntities()
 end
 
 function ENT:LinkEnt(pod)
+	pod = WireLib.GetClosestRealVehicle(pod,self:GetPos(),self:GetPlayer())
+
 	if not IsValid(pod) or not pod:IsVehicle() then return false, "Must link to a vehicle" end
 	for i=1,#self.Vehicles do
 		if self.Vehicles[i] == pod then
@@ -870,6 +877,14 @@ function ENT:LinkEnt(pod)
 
 	self.Vehicles[#self.Vehicles+1] = pod
 	self.Players = {}
+
+	if not self.Active then
+		if #self.Vehicles > 0 then
+			self:ColorByLinkStatus(self.LINK_STATUS_LINKED)
+		else
+			self:ColorByLinkStatus(self.LINK_STATUS_UNLINKED)
+		end
+	end
 
 	if IsValid( pod:GetDriver() ) then
 		self:EnableCam( pod:GetDriver() )
@@ -896,6 +911,14 @@ function ENT:UnlinkEnt(pod)
 	pod:RemoveCallOnRemove( "wire_camera_controller_remove_pod" )
 	table.remove( self.Vehicles, idx )
 	pod.CamController = nil
+
+	if not self.Active then
+		if #self.Vehicles > 0 then
+			self:ColorByLinkStatus(self.LINK_STATUS_LINKED)
+		else
+			self:ColorByLinkStatus(self.LINK_STATUS_UNLINKED)
+		end
+	end
 
 	self:UpdateMarks()
 	return true
