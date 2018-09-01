@@ -118,7 +118,7 @@ local SysTime = SysTime
 function ENT:Execute()
 	if self.error then return end
 	if self.context.resetting then return end
-	local unlimited = self.player:GetPData("expression2_unlimited",0)
+	local unlimited = tobool(self.player:GetPData("expression2_unlimited",0))
 
 	for k, v in pairs(self.tvars) do
 		self.GlobalScope[k] = copytype(wire_expression_types2[v][2])
