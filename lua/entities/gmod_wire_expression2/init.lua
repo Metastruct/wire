@@ -133,7 +133,7 @@ function ENT:Execute()
 	local ok, msg = pcall(self.script[1], self.context, self.script)
 	if not ok then
 		if msg == "exit" then
-		elseif msg == "perf" and not unlimited then
+		elseif msg == "perf" then
 			self:Error("Expression 2 (" .. self.name .. "): tick quota exceeded", "tick quota exceeded")
 		else
 			self:Error("Expression 2 (" .. self.name .. "): " .. msg, "script error")
@@ -167,7 +167,7 @@ function ENT:Execute()
 		self.GlobalScope[k] = copytype(wire_expression_types2[v][2])
 	end
 
-	if self.context.prfcount + self.context.prf - e2_softquota > e2_hardquota and not unlimited then
+	if self.context.prfcount + self.context.prf - e2_softquota > e2_hardquota or (unlimited and self.context.prfcount + self.context.prf - 1000000 > 1000000) then
 		self:Error("Expression 2 (" .. self.name .. "): tick quota exceeded", "hard quota exceeded")
 	end
 
