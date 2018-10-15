@@ -347,9 +347,8 @@ end)
 -- Other functions
 --------------------------------------------------------------------------------
 
-local base_gmodentity = scripted_ents.Get("base_gmodentity")
 function ENT:Initialize()
-	base_gmodentity.Initialize(self)
+	BaseClass.Initialize(self)
 	self:PhysicsInit(SOLID_VPHYSICS)
 	self:SetMoveType(MOVETYPE_VPHYSICS)
 	self:SetSolid(SOLID_VPHYSICS)
@@ -373,6 +372,7 @@ function ENT:ApplyDupeInfo(ply, ent, info, GetEntByID)
 end
 
 function ENT:PreEntityCopy()
+	duplicator.ClearEntityModifier(self, "WireDupeInfo") 
 	-- build the DupeInfo table and save it as an entity mod
 	local DupeInfo = self:BuildDupeInfo()
 	if DupeInfo then

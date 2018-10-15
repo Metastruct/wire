@@ -33,6 +33,13 @@ local function ResetRanger(self)
 	data.rangerfilter_lookup = table.MakeNonIterable{ [self.entity] = true }
 end
 
+local function IsErrorVector(pos)
+	if pos.x ~= pos.x or pos.x == math.huge or pos.x == -math.huge then return true end
+	if pos.y ~= pos.y or pos.y == math.huge or pos.y == -math.huge then return true end
+	if pos.z ~= pos.z or pos.z == math.huge or pos.z == -math.huge then return true end
+	return false
+end
+
 local function ranger(self, rangertype, range, p1, p2, hulltype, mins, maxs, traceEntity )
 	local data = self.data
 	local chip = self.entity
@@ -46,7 +53,7 @@ local function ranger(self, rangertype, range, p1, p2, hulltype, mins, maxs, tra
 	if not data.rangerpersist then ResetRanger(self) end
 
 	-- begin building tracedata structure
-	local tracedata = { filter = filter }
+	local tracedata = { filter = filter, ignoreworld = ignoreworld }
 	if water then
 		if entities then
 			--(i)we
@@ -54,7 +61,6 @@ local function ranger(self, rangertype, range, p1, p2, hulltype, mins, maxs, tra
 		elseif ignoreworld then
 			--iw
 			tracedata.mask = MASK_WATER
-			ignoreworld = false
 		else
 			--w
 			tracedata.mask = bit.bor(MASK_WATER, CONTENTS_SOLID)
@@ -63,7 +69,6 @@ local function ranger(self, rangertype, range, p1, p2, hulltype, mins, maxs, tra
 		if ignoreworld then
 			--i
 			tracedata.mask = 0
-			ignoreworld = false
 		else
 			--no flags
 			tracedata.mask = MASK_NPCWORLDSTATIC
@@ -98,11 +103,7 @@ local function ranger(self, rangertype, range, p1, p2, hulltype, mins, maxs, tra
 		end
 	end
 
-	-- clamp positions
-	tracedata.start = E2Lib.clampPos( tracedata.start )
-	if tracedata.start:Distance( tracedata.endpos ) > 57000 then -- 57000 is slightly larger than the diagonal distance (min corner to max corner) of the source max map size
-		tracedata.endpos = tracedata.start + (tracedata.endpos - tracedata.start):GetNormal() * 57000
-	end
+	if IsErrorVector(tracedata.start) or IsErrorVector(tracedata.endpos) then return end
 
 	---------------------------------------------------------------------------------------
 	local trace
@@ -122,10 +123,14 @@ local function ranger(self, rangertype, range, p1, p2, hulltype, mins, maxs, tra
 
 		if not entities then -- unfortunately we have to add tons of ops if this happens
 							 -- If we didn't, it would be possible to crash servers with it.
-			tracedata.mins = E2Lib.clampPos( tracedata.mins )
-			tracedata.maxs = E2Lib.clampPos( tracedata.maxs )
+			tracedata.mins = WireLib.clampPos( tracedata.mins )
+			tracedata.maxs = WireLib.clampPos( tracedata.maxs )
 			self.prf = self.prf + tracedata.mins:Distance(tracedata.maxs) * 0.5
 		end
+
+		if IsErrorVector(tracedata.mins) or IsErrorVector(tracedata.maxs) then return end
+		-- If max is less than min it'll cause a hang
+		OrderVectors(tracedata.mins, tracedata.maxs)
 
 		trace = util.TraceHull( tracedata )
 	else
@@ -134,11 +139,8 @@ local function ranger(self, rangertype, range, p1, p2, hulltype, mins, maxs, tra
 	---------------------------------------------------------------------------------------
 
 	-- handle some ranger settings
-	if ignoreworld and trace.HitWorld then
-		trace.HitPos = defaultzero and tracedata.start or tracedata.endpos
-		trace.Hit = false
-		trace.HitWorld = false
-	elseif defaultzero and not trace.Hit then
+	if defaultzero and not trace.Hit then
+		trace.Fraction = 0
 		trace.HitPos = tracedata.start
 	end
 

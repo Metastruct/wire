@@ -94,6 +94,11 @@ e2function number entity:creationID()
 	return this:GetCreationID()
 end
 
+e2function number entity:creationTime()
+        if not IsValid(this) then return 0 end
+        return this:GetCreationTime()
+end
+
 /******************************************************************************/
 // Functions getting string
 
@@ -288,7 +293,7 @@ end
 
 e2function void setMass(mass)
 	if not validPhysics(self.entity) then return end
-	if E2Lib.isnan( mass ) then mass = 50000 end
+	if WireLib.isnan( mass ) then mass = 50000 end
 	local mass = Clamp(mass, 0.001, 50000)
 	local phys = self.entity:GetPhysicsObject()
 	phys:SetMass(mass)
@@ -298,7 +303,7 @@ e2function void entity:setMass(mass)
 	if not validPhysics(this) then return end
 	if not isOwner(self, this) then return end
 	if this:IsPlayer() then return end
-	if E2Lib.isnan( mass ) then mass = 50000 end
+	if WireLib.isnan( mass ) then mass = 50000 end
 	local mass = Clamp(mass, 0.001, 50000)
 	local phys = this:GetPhysicsObject()
 	phys:SetMass(mass)
@@ -308,6 +313,18 @@ e2function number entity:volume()
 	if not validPhysics(this) then return 0 end
 	local phys = this:GetPhysicsObject()
 	return phys:GetVolume()
+end
+
+e2function number entity:surfaceArea()
+	if not validPhysics(this) then return 0 end
+	local phys = this:GetPhysicsObject()
+	return phys:GetSurfaceArea()
+end
+
+e2function number entity:stress()
+	if not validPhysics(this) then return 0 end
+	local phys = this:GetPhysicsObject()
+	return phys:GetStress()
 end
 
 /******************************************************************************/

@@ -7,6 +7,7 @@ WireAddon = 1
 local ents = ents
 local timer = timer
 local string = string
+local math_clamp = math.Clamp
 local table = table
 local hook = hook
 local concommand = concommand
@@ -85,10 +86,10 @@ WireLib.DT = {
 		Zero = ""
 	},
 	TABLE = {
-		Zero = {}
+		Zero = {n={},ntypes={},s={},stypes={},size=0},
 	},
 	BIDIRTABLE = {
-		Zero = {},
+		Zero = {n={},ntypes={},s={},stypes={},size=0},
 		BiDir = true
 	},
 	ANY = {
@@ -596,7 +597,7 @@ function WireLib.Link_Start(idx, ent, pos, iname, material, color, width)
 	input.StartPos = pos
 	input.Material = material
 	input.Color = color
-	input.Width = width
+	input.Width = math_clamp(width, 0, 5)
 
 	return true
 end
@@ -994,26 +995,6 @@ function WireLib.GetOwner(ent)
 	return E2Lib.getOwner({}, ent)
 end
 
-function WireLib.dummytrace(ent)
-	local pos = ent:GetPos()
-	return {
-		FractionLeftSolid = 0,
-		HitNonWorld       = true,
-		Fraction          = 0,
-		Entity            = ent,
-		HitPos            = pos,
-		HitNormal         = Vector(0,0,0),
-		HitBox            = 0,
-		Normal            = Vector(1,0,0),
-		Hit               = true,
-		HitGroup          = 0,
-		MatType           = 0,
-		StartPos          = pos,
-		PhysicsBone       = 0,
-		WorldToLocal      = Vector(0,0,0),
-	}
-end
-
 function WireLib.NumModelSkins(model)
 	if NumModelSkins then
 		return NumModelSkins(model)
@@ -1198,6 +1179,24 @@ function WireLib.IsValidMaterial(material)
 	local path = string.StripExtension(string.GetNormalizedFilepath(string.lower(material)))
 	if material_blacklist[path] then return "" end
 	return material
+end
+
+function WireLib.SetColor(ent, color)
+	color.r = math_clamp(color.r, 0, 255)
+	color.g = math_clamp(color.g, 0, 255)
+	color.b = math_clamp(color.b, 0, 255)
+	color.a = ent:IsPlayer() and ent:GetColor().a or math_clamp(color.a, 0, 255)
+
+	local rendermode = ent:GetRenderMode()
+	if rendermode == RENDERMODE_NORMAL or rendermode == RENDERMODE_TRANSALPHA then
+		rendermode = color.a == 255 and RENDERMODE_NORMAL or RENDERMODE_TRANSALPHA
+		ent:SetRenderMode(rendermode)
+	else
+		rendermode = nil -- Don't modify the current stored modifier
+	end
+		 
+	ent:SetColor(color)
+	duplicator.StoreEntityModifier(ent, "colour", { Color = color, RenderMode = rendermode })
 end
 
 if not WireLib.PatchedDuplicator then

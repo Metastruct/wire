@@ -5,7 +5,6 @@ ENT.Author          = "Divran"
 ENT.Purpose         = "Links with a socket"
 ENT.Instructions    = "Move a plug close to a socket to link them, and data will be transferred through the link."
 ENT.WireDebugName = "Plug"
-local base = scripted_ents.Get("base_wire_entity")
 
 function ENT:GetSocketClass()
 	return "gmod_wire_socket"
@@ -34,7 +33,7 @@ end
 if CLIENT then
 	function ENT:DrawEntityOutline()
 		if (GetConVar("wire_plug_drawoutline"):GetBool()) then
-			base.DrawEntityOutline( self )
+			BaseClass.DrawEntityOutline( self )
 		end
 	end
 	return -- No more client
@@ -117,6 +116,7 @@ end
 -- Hi-speed support
 ------------------------------------------------------------
 function ENT:WriteCell( Address, Value, WriteToMe )
+	Address = math.floor(Address)
 	if (WriteToMe) then
 		self.Memory[Address or 1] = Value or 0
 		return true
@@ -135,11 +135,12 @@ end
 -- Hi-speed support
 ------------------------------------------------------------
 function ENT:ReadCell( Address )
+	Address = math.floor(Address)
 	return self.Memory[Address or 1] or 0
 end
 
 function ENT:Think()
-	base.Think( self )
+	BaseClass.Think( self )
 	self:SetNWBool( "PlayerHolding", self:IsPlayerHolding() )
 end
 
@@ -190,5 +191,5 @@ function ENT:ApplyDupeInfo(ply, ent, info, GetEntByID)
 		ent:Setup( info.Plug.ArrayInput )
 	end
 
-	base.ApplyDupeInfo(self, ply, ent, info, GetEntByID)
+	BaseClass.ApplyDupeInfo(self, ply, ent, info, GetEntByID)
 end

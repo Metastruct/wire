@@ -14,7 +14,7 @@ function ENT:Initialize()
 	self:PhysicsInit( SOLID_VPHYSICS )
 	self:SetMoveType( MOVETYPE_VPHYSICS )
 	self:SetSolid( SOLID_VPHYSICS )
-	self.Inputs = Wire_CreateInputs(self, { "Grab","Strength" })
+	self.Inputs = Wire_CreateInputs(self, { "Grab","Strength","Range" })
 	self.Outputs = Wire_CreateOutputs(self, {"Holding", "Grabbed Entity [ENTITY]"})
 	self.WeldStrength = 0
 	self.Weld = nil
@@ -136,12 +136,14 @@ function ENT:TriggerInput(iname, value)
 		end
 	elseif iname == "Strength" then
 		self.WeldStrength = math.max(value,0)
+	elseif iname == "Range" then
+		self:SetBeamLength(math.Clamp(value,0,32000))
 	end
 end
 
 --duplicator support (TAD2020)
 function ENT:BuildDupeInfo()
-	local info = self.BaseClass.BuildDupeInfo(self) or {}
+	local info = BaseClass.BuildDupeInfo(self) or {}
 
 	if self.WeldEntity and self.WeldEntity:IsValid() then
 		info.WeldEntity = self.WeldEntity:EntIndex()
@@ -155,7 +157,7 @@ function ENT:BuildDupeInfo()
 end
 
 function ENT:ApplyDupeInfo(ply, ent, info, GetEntByID)
-	self.BaseClass.ApplyDupeInfo(self, ply, ent, info, GetEntByID)
+	BaseClass.ApplyDupeInfo(self, ply, ent, info, GetEntByID)
 
 	self.WeldEntity = GetEntByID(info.WeldEntity)
 

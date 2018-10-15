@@ -316,7 +316,7 @@ WireLib.ThrusterEffectDraw.fire_smoke_big = function(self)
 
 
 
-	local effectdata = EffectData()
+	effectdata = EffectData()
 		effectdata:SetOrigin( vOffset )
 		effectdata:SetNormal( vNormal )
 	util.Effect( "ThumperDust ", effectdata )
@@ -681,8 +681,6 @@ WireLib.ThrusterEffectThink.jetflame = function(self)
 	local vOffset = self:LocalToWorld(self:GetOffset())
 	local vNormal = self:CalcNormal()
 
-	//vOffset = vOffset + VectorRand() * 5
-
 	local speed = math.Rand(90,252)
 	local roll = math.Rand(-90,90)
 
@@ -728,8 +726,6 @@ WireLib.ThrusterEffectThink.jetflame_purple = function(self)
 
 	local vOffset = self:LocalToWorld(self:GetOffset())
 	local vNormal = self:CalcNormal()
-
-	//vOffset = vOffset + VectorRand() * 5
 
 	local speed = math.Rand(90,252)
 	local roll = math.Rand(-90,90)
@@ -777,8 +773,6 @@ WireLib.ThrusterEffectThink.jetflame_red = function(self)
 	local vOffset = self:LocalToWorld(self:GetOffset())
 	local vNormal = self:CalcNormal()
 
-	//vOffset = vOffset + VectorRand() * 5
-
 	local speed = math.Rand(90,252)
 	local roll = math.Rand(-90,90)
 
@@ -824,8 +818,6 @@ WireLib.ThrusterEffectThink.jetflame_blue = function(self)
 
 	local vOffset = self:LocalToWorld(self:GetOffset())
 	local vNormal = self:CalcNormal()
-
-	//vOffset = vOffset + VectorRand() * 5
 
 	local speed = math.Rand(90,252)
 	local roll = math.Rand(-90,90)
@@ -1050,6 +1042,7 @@ WireLib.ThrusterEffectDraw.rings = function(self)
 	local effectdata = EffectData()
 		effectdata:SetOrigin( vOffset )
 		effectdata:SetNormal( vNormal )
+	effectdata:SetMagnitude(0) -- growth rate
 	util.Effect( "thruster_ring", effectdata )
 
 end
@@ -1302,7 +1295,8 @@ WireLib.ThrusterEffectDraw.rings_grow = function(self)
 	local effectdata = EffectData()
 		effectdata:SetOrigin( vOffset )
 		effectdata:SetNormal( vNormal )
-	util.Effect( "thruster_ring_grow", effectdata )
+	effectdata:SetMagnitude(0.08) -- growth rate
+	util.Effect("thruster_ring", effectdata)
 
 end
 
@@ -1318,12 +1312,16 @@ WireLib.ThrusterEffectDraw.rings_grow_rings = function(self)
 	local effectdata = EffectData()
 		effectdata:SetOrigin( vOffset )
 		effectdata:SetNormal( vNormal )
-	util.Effect( "thruster_ring", effectdata )
-	util.Effect( "thruster_ring_grow", effectdata )
-	util.Effect( "thruster_ring_grow1", effectdata )
-	util.Effect( "thruster_ring_grow2", effectdata )
-	util.Effect( "thruster_ring_grow3", effectdata )
-
+	effectdata:SetMagnitude(0.08) -- growth rate
+	util.Effect("thruster_ring", effectdata)
+	effectdata:SetMagnitude(0.06)
+	util.Effect("thruster_ring", effectdata)
+	effectdata:SetMagnitude(0.04)
+	util.Effect("thruster_ring", effectdata)
+	effectdata:SetMagnitude(0.02)
+	util.Effect("thruster_ring", effectdata)
+	effectdata:SetMagnitude(0)
+	util.Effect("thruster_ring", effectdata)
 end
 
 WireLib.ThrusterEffectDraw.rings_shrink = function(self)
@@ -1338,7 +1336,8 @@ WireLib.ThrusterEffectDraw.rings_shrink = function(self)
 	local effectdata = EffectData()
 		effectdata:SetOrigin( vOffset )
 		effectdata:SetNormal( vNormal )
-	util.Effect( "thruster_ring_shrink", effectdata )
+	effectdata:SetMagnitude(-0.02) -- growth rate
+	util.Effect("thruster_ring", effectdata)
 
 end
 

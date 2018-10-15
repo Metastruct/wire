@@ -2,6 +2,8 @@ AddCSLuaFile('cl_init.lua')
 AddCSLuaFile('shared.lua')
 include('shared.lua')
 
+DEFINE_BASECLASS("base_wire_entity")
+
 -- This makes E2s not save using garry's workshop save
 -- Until someone can find the cause of the crashes, leave this in here
 local old = gmsave.ShouldSaveEntity
@@ -175,7 +177,7 @@ function ENT:Execute()
 end
 
 function ENT:Think()
-	self.BaseClass.Think(self)
+	BaseClass.Think(self)
 	self:NextThink(CurTime()+0.030303)
 
 	if self.context and not self.error then
@@ -511,7 +513,7 @@ function ENT:ApplyDupeInfo(ply, ent, info, GetEntByID, GetConstByID)
 		self.duped = false
 	end
 
-	self.BaseClass.ApplyDupeInfo(self, ply, ent, info, GetEntByID, GetConstByID)
+	BaseClass.ApplyDupeInfo(self, ply, ent, info, GetEntByID, GetConstByID)
 end
 
 -- -------------------------------- Transfer ----------------------------------

@@ -66,6 +66,7 @@ end
 function ENT:ReadCell( Address, infloop )
 	infloop = infloop or 0
 	if infloop > 50 then return end
+	Address = math.floor(Address)
 
 	if (self.Memory) then
 		if (self.Memory.ReadCell) then
@@ -81,6 +82,7 @@ end
 function ENT:WriteCell( Address, value, infloop )
 	infloop = infloop or 0
 	if infloop > 50 then return end
+	Address = math.floor(Address)
 
 	if (self.Memory) then
 		if (self.Memory.WriteCell) then
@@ -100,9 +102,8 @@ function ENT:TriggerInput(iname, value, iter)
 end
 
 -- Override dupeinfo functions from wire plug
-local base = scripted_ents.Get("gmod_wire_socket")
 function ENT:BuildDupeInfo()
-	local info = base.BuildDupeInfo(self)
+	local info = BaseClass.BuildDupeInfo(self)
 
 	if info.Socket then info.Socket.ArrayInput = nil end -- this input is not used on this entity
 

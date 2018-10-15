@@ -43,7 +43,7 @@ end
 Obj.Receive = function( self )
 	local tbl = {}
 	tbl.vertices = {}
-	for i=1,net.ReadUInt(8) do
+	for _ = 1, net.ReadUInt(8) do
 		tbl.vertices[ #tbl.vertices+1 ] = { x = net.ReadInt(16), y = net.ReadInt(16), u = net.ReadFloat(), v = net.ReadFloat() }
 	end
 	tbl.filtering = net.ReadUInt(2)
@@ -54,4 +54,23 @@ Obj.Receive = function( self )
 end
 Obj.DataStreamInfo = function( self )
 	return { vertices = self.vertices, material = self.material, r = self.r, g = self.g, b = self.b, a = self.a, filtering = self.filtering, parent = self.parent }
+end
+function Obj:Contains(point)
+	if #self.vertices < 3 then return false end
+
+	-- To check whether a point is in the polygon, we check whether it's to the
+	-- 'inside' side of each edge. (If the polygon is counterclockwise then the
+	-- inside is the left side; otherwise it's the right side.) This only works
+	-- for convex polygons, but so does `surface.drawPoly`.
+	local inside
+	if counterclockwise(self.vertices[1], self.vertices[2], self.vertices[3]) then
+		inside = counterclockwise
+	else
+		inside = function(a, b, c) return counterclockwise(b, a, c) end
+	end
+
+	for i = 1, #self.vertices - 1 do
+		if not inside(self.vertices[i], self.vertices[i + 1], point) then return false end
+	end
+	return inside(self.vertices[#self.vertices], self.vertices[1], point)
 end

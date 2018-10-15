@@ -119,7 +119,7 @@ end
 
 function ENT:Think()
 	if (self.Inputs.Pause.Value == 0) then
-		self.BaseClass.Think(self)
+		BaseClass.Think(self)
 
 		local x = math.max(-1, math.min(self.Inputs.X.Value or 0, 1))
 		local y = math.max(-1, math.min(self.Inputs.Y.Value or 0, 1))
@@ -158,6 +158,7 @@ end
 ]]
 local address_lookup = {nil,nil,"R","G","B","Length","Update Frequency"}
 function ENT:WriteCell( address, value )
+	address = math.floor(address)
 	address = address + 1
 	if address == 1 then
 		self.Inputs.X.Value = value
@@ -169,6 +170,7 @@ function ENT:WriteCell( address, value )
 end
 
 function ENT:ReadCell( address )
+	address = math.floor(address)
 	address = address + 1
 	if address == 1 then
 		return self.Inputs.X.Value

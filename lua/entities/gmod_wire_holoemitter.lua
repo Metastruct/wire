@@ -100,7 +100,7 @@ if CLIENT then
 	end
 
 	function ENT:Draw()
-		self.BaseClass.Draw(self)
+		BaseClass.Draw(self)
 
 		local ent = self:GetNWEntity( "Link", false )
 		if not IsValid(ent) then ent = self end
@@ -266,6 +266,7 @@ end
 -- 13 = Active
 
 function ENT:ReadCell( Address )
+	Address = math.floor(Address)
 	if (Address == 0) then
 		return 1
 	elseif (Address == 1) then
@@ -298,6 +299,7 @@ function ENT:ReadCell( Address )
 end
 
 function ENT:WriteCell( Address, value )
+	Address = math.floor(Address)
 	if (Address == 0) then
 		self:AddPoint()
 		return true
@@ -398,7 +400,7 @@ function ENT:UpdateTransmitState()
 end
 
 function ENT:BuildDupeInfo()
-	local info = self.BaseClass.BuildDupeInfo(self) or {}
+	local info = BaseClass.BuildDupeInfo(self) or {}
 
 	local link = self:GetNWEntity("Link",false)
 	if (link) then
@@ -409,7 +411,7 @@ function ENT:BuildDupeInfo()
 end
 
 function ENT:ApplyDupeInfo(ply, ent, info, GetEntByID)
-	self.BaseClass.ApplyDupeInfo(self, ply, ent, info, GetEntByID)
+	BaseClass.ApplyDupeInfo(self, ply, ent, info, GetEntByID)
 
 	self:Link(GetEntByID(info.holoemitter_link))
 end

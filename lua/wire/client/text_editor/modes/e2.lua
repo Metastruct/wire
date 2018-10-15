@@ -333,6 +333,9 @@ function EDITOR:SyntaxColorLine(row)
     local spaces = self:SkipPattern( " *" )
     if spaces then addToken( "comment", spaces ) end
 
+    local invalidInput = self:SkipPattern( "[^A-Z:%[]*" )
+    if invalidInput then addToken( "notfound", invalidInput ) end
+
     if self:NextPattern( "%[" ) then -- Found a [
     -- Color the bracket
     addToken( "operator", self.tokendata )
@@ -368,8 +371,6 @@ function EDITOR:SyntaxColorLine(row)
       else -- aww
       addToken( "notfound", self.tokendata )
       end
-    else
-      break
     end
 
     local spaces = self:SkipPattern( " *" )

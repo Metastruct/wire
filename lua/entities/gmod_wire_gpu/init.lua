@@ -4,6 +4,8 @@ AddCSLuaFile("cl_gpuvm.lua")
 AddCSLuaFile("shared.lua")
 include("shared.lua")
 
+DEFINE_BASECLASS("base_wire_entity")
+
 ENT.WireDebugName = "ZGPU"
 
 
@@ -112,6 +114,7 @@ end
 -- Read cell from GPU memory
 --------------------------------------------------------------------------------
 function ENT:ReadCell(Address)
+  Address = math.floor(Address)
   -- Check if address is valid
   if not isValidAddress(Address) then
     self:Interrupt(15,Address)
@@ -134,6 +137,7 @@ end
 -- Write cell to GPU memory
 --------------------------------------------------------------------------------
 function ENT:WriteCell(Address, Value, Player)
+  Address = math.floor(Address)
   if (Address < 0) or (Address >= self.RAMSize) then
     return false
   else
@@ -165,7 +169,7 @@ end
 -- Write advanced dupe
 --------------------------------------------------------------------------------
 function ENT:BuildDupeInfo()
-  local info = self.BaseClass.BuildDupeInfo(self) or {}
+  local info = BaseClass.BuildDupeInfo(self) or {}
 
   info.SerialNo = self.SerialNo
   info.RAMSize = self.RAMSize
@@ -184,7 +188,7 @@ end
 -- Read from advanced dupe
 --------------------------------------------------------------------------------
 function ENT:ApplyDupeInfo(ply, ent, info, GetEntByID)
-  self.BaseClass.ApplyDupeInfo(self, ply, ent, info, GetEntByID)
+  BaseClass.ApplyDupeInfo(self, ply, ent, info, GetEntByID)
 
   self.SerialNo = info.SerialNo or 999999
   self.RAMSize  = info.RAMSize or 65536
@@ -223,10 +227,10 @@ function ENT:QueryMonitors(entity)
 
   if entity:GetClass() == "gmod_wire_gpu" then -- VideoOut connected to a GPU
     table.insert(self.QueryResult,entity:EntIndex())
-  elseif entity.MySocket then -- VideoOut connected to a plug
-    self:QueryMonitors(entity.MySocket.Inputs.Memory.Src)
-  elseif entity.MyPlug then -- VideoOut connected to a socket
-    self:QueryMonitors(entity.MyPlug.Inputs.Memory.Src)
+  elseif entity.Socket then -- VideoOut connected to a plug
+    self:QueryMonitors(entity.Socket.Inputs.Memory.Src)
+  elseif entity.Plug then -- VideoOut connected to a socket
+    self:QueryMonitors(entity.Plug.Inputs.Memory.Src)
   elseif entity.Ply and entity.Ply:IsValid() then -- VideoOut connected to pod
     table.insert(self.QueryResult,entity.Ply:EntIndex())
   elseif entity:GetClass() == "gmod_wire_addressbus" then -- VideoOut connected to address bus

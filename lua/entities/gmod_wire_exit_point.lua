@@ -5,7 +5,7 @@ ENT.PrintName		= "Wire Vehicle Exit Point"
 if CLIENT then return end -- No more client
 
 function ENT:Initialize()
-	self.BaseClass.Initialize(self)
+	BaseClass.Initialize(self)
 
 	self.Inputs = WireLib.CreateInputs(self, {"Entity [ENTITY]", "Entities [ARRAY]", "Position [VECTOR]", "Local Position [VECTOR]", "Angle [ANGLE]", "Local Angle [ANGLE]"})
 
@@ -106,6 +106,7 @@ end
 function ENT:LinkEnt( ent )
 	ent = WireLib.GetClosestRealVehicle(ent,self:GetPos(),self:GetPlayer())
 
+	if not IsValid(ent) or not ent:IsVehicle() then return false, "Must link to a vehicle" end
 	if self.Entities[ent] then return end
 	self.Entities[ent] = true
 	ent:CallOnRemove("ExitPoint.Unlink", function(ent)
@@ -133,7 +134,7 @@ function ENT:ClearEntities()
 end
 
 function ENT:BuildDupeInfo()
-	local info = self.BaseClass.BuildDupeInfo(self) or {}
+	local info = BaseClass.BuildDupeInfo(self) or {}
 
 	if next(self.Entities) then
 		info.marks = {}
@@ -146,7 +147,7 @@ function ENT:BuildDupeInfo()
 end
 
 function ENT:ApplyDupeInfo(ply, ent, info, GetEntByID)
-	self.BaseClass.ApplyDupeInfo(self, ply, ent, info, GetEntByID)
+	BaseClass.ApplyDupeInfo(self, ply, ent, info, GetEntByID)
 
 	if info.marks then
 		for _, entindex in pairs(info.marks) do

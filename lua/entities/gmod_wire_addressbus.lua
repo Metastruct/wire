@@ -41,7 +41,7 @@ function ENT:Setup(Mem1st, Mem2st, Mem3st, Mem4st, Mem1sz, Mem2sz, Mem3sz, Mem4s
 end
 
 function ENT:Think()
-	self.BaseClass.Think(self)
+	BaseClass.Think(self)
 
 	self.DataRate = self.DataBytes
 	self.DataBytes = 0
@@ -53,6 +53,7 @@ function ENT:Think()
 end
 
 function ENT:ReadCell(Address)
+	Address = math.floor(Address)
 	for i = 1,4 do
 		if (Address >= self.MemStart[i]) and (Address <= self.MemEnd[i]) then
 			if self.Memory[i] then
@@ -70,6 +71,7 @@ function ENT:ReadCell(Address)
 end
 
 function ENT:WriteCell(Address, value)
+	Address = math.floor(Address)
 	local res = false
 	for i = 1,4 do
 		if (Address >= self.MemStart[i]) and (Address <= self.MemEnd[i]) then

@@ -45,7 +45,7 @@ end
 function ENT:OnRemove()
 	hook.Remove("PlayerConnect", self:GetClass() .. self:EntIndex())
 	self:StopSounds()
-	self.BaseClass.OnRemove(self)
+	BaseClass.OnRemove(self)
 end
 
 --[[
@@ -56,6 +56,7 @@ end
 	3: duration
 ]]
 function ENT:ReadCell(address)
+	address = math.floor(address)
 	if address == 0 then
 		return self.Active and 1 or 0
 	elseif address == 1 then
@@ -79,6 +80,7 @@ local cellsOut = {
 }
 
 function ENT:WriteCell(address, value)
+	address = math.floor(address)
 	if cellsOut[address] then
 		self:TriggerInput(cellsOut[address], value)
 		return true

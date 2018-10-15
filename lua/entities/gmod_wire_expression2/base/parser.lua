@@ -94,23 +94,6 @@ function Parser.Execute(...)
 	return xpcall(Parser.Process, E2Lib.errorHandler, instance, ...)
 end
 
-function Parser.DumpTree(tree, indentation)
-	indentation = indentation or ''
-	local str = indentation .. tree[1] .. '(' .. tree[2][1] .. ':' .. tree[2][2] .. ')\n'
-	indentation = indentation .. '  '
-	for i = 3, #tree do
-		local child = tree[i]
-		if type(child) == 'table' and child.__instruction then
-			str = str .. Parser.DumpTree(child, indentation)
-		elseif type(child) == 'string' then
-			str = str .. indentation .. string.format('%q', child) .. '\n'
-		else
-			str = str .. indentation .. tostring(child) .. '\n'
-		end
-	end
-	return str
-end
-
 function Parser:Error(message, token)
 	if token then
 		error(message .. " at line " .. token[4] .. ", char " .. token[5], 0)
@@ -129,7 +112,7 @@ function Parser:Process(tokens, params)
 	self:NextToken()
 	local tree = self:Root()
 	if parserDebug:GetBool() then
-		print(Parser.DumpTree(tree))
+		print(E2Lib.AST.dump(tree))
 	end
 	return tree, self.delta, self.includes
 end
@@ -497,7 +480,7 @@ end
 function Parser:Stmt8(parentLocalized)
 	local localized
 	if self:AcceptRoamingToken("loc") then
-		if parentLocalized then self:Error("Duplicate keyword (local)") end
+		if parentLocalized ~= nil then self:Error("Assignment can't contain roaming local operator") end
 		localized = true
 	end
 
@@ -521,7 +504,7 @@ function Parser:Stmt8(parentLocalized)
 				for i = 1, total do -- Yep, All this took me 2 hours to figure out!
 					local key, type, trace = indexs[i][1], indexs[i][2], indexs[i][3]
 					if i == total then
-						inst = self:Instruction(trace, "set", inst, key, self:Stmt8(), type)
+						inst = self:Instruction(trace, "set", inst, key, self:Stmt8(false), type)
 					else
 						inst = self:Instruction(trace, "get", inst, key, type)
 					end
@@ -533,7 +516,7 @@ function Parser:Stmt8(parentLocalized)
 			if localized or parentLocalized then
 				return self:Instruction(trace, "assl", var, self:Stmt8(true))
 			else
-				return self:Instruction(trace, "ass", var, self:Stmt8())
+				return self:Instruction(trace, "ass", var, self:Stmt8(false))
 			end
 		elseif localized then
 			self:Error("Invalid operator (local) must be used for variable decleration.")
@@ -580,9 +563,6 @@ function Parser:Stmt10()
 	if self:AcceptRoamingToken("func") then
 
 		local Trace = self:GetTokenTrace()
-
-
-		if self.in_func then self:Error("Functions can not be created from inside other functions") end
 
 
 		local Name, Return, Type
@@ -683,11 +663,7 @@ function Parser:Stmt10()
 
 		if wire_expression2_funcs[Sig] then self:Error("Function '" .. Sig .. "' already exists") end
 
-		self.in_func = true
-
 		local Inst = self:Instruction(Trace, "function", Sig, Return, Type, Args, self:Block("function decleration"))
-
-		self.in_func = false
 
 		return Inst
 
@@ -696,18 +672,11 @@ function Parser:Stmt10()
 
 		local Trace = self:GetTokenTrace()
 
-		if self.in_func then
-
-			if self:AcceptRoamingToken("void") or (self.readtoken[1] and self.readtoken[1] == "rcb") then
-				return self:Instruction(Trace, "returnvoid")
-			end
-
-			return self:Instruction(Trace, "return", self:Expr1())
-
-		else
-			self:Error("Return may not exist outside of a function")
+		if self:AcceptRoamingToken("void") or (self.readtoken[1] and self.readtoken[1] == "rcb") then
+			return self:Instruction(Trace, "return")
 		end
 
+		return self:Instruction(Trace, "return", self:Expr1())
 
 		-- Void Missplacement
 	elseif self:AcceptRoamingToken("void") then
@@ -1159,7 +1128,7 @@ function Parser:Expr15()
 			local token = self:GetToken()
 
 			if self:AcceptRoamingToken("rpa") then
-				expr = self:Instruction(trace, "mto", fun, expr, {})
+				expr = self:Instruction(trace, "methodcall", fun, expr, {})
 			else
 				local exprs = { self:Expr1() }
 
@@ -1171,7 +1140,7 @@ function Parser:Expr15()
 					self:Error("Right parenthesis ()) missing, to close method argument list", token)
 				end
 
-				expr = self:Instruction(trace, "mto", fun, expr, exprs)
+				expr = self:Instruction(trace, "methodcall", fun, expr, exprs)
 			end
 			--elseif self:AcceptRoamingToken("col") then
 			--	self:Error("Method operator (:) must not be preceded by whitespace")
@@ -1246,9 +1215,9 @@ function Parser:Expr15()
 
 				local stype = wire_expression_types[string.upper(longtp)][1]
 
-				expr = self:Instruction(trace, "sfun", expr, exprs, stype)
+				expr = self:Instruction(trace, "stringcall", expr, exprs, stype)
 			else
-				expr = self:Instruction(trace, "sfun", expr, exprs, "")
+				expr = self:Instruction(trace, "stringcall", expr, exprs, "")
 			end
 		else
 			break
@@ -1286,7 +1255,7 @@ function Parser:Expr16()
 		local token = self:GetToken()
 
 		if self:AcceptRoamingToken("rpa") then
-			return self:Instruction(trace, "fun", fun, {})
+			return self:Instruction(trace, "call", fun, {})
 		else
 
 			local exprs = {}
@@ -1296,7 +1265,6 @@ function Parser:Expr16()
 				local kvtable = false
 
 				local key = self:Expr1()
-				local token = self:GetToken()
 
 				if self:AcceptRoamingToken("ass") then
 					if self:AcceptRoamingToken("rpa") then
@@ -1312,10 +1280,8 @@ function Parser:Expr16()
 
 				if kvtable then
 					while self:AcceptRoamingToken("com") do
-						local token = self:GetToken()
-
 						local key = self:Expr1()
-						token = self:GetToken()
+						local token = self:GetToken()
 
 						if self:AcceptRoamingToken("ass") then
 							if self:AcceptRoamingToken("rpa") then
@@ -1346,7 +1312,7 @@ function Parser:Expr16()
 				self:Error("Right parenthesis ()) missing, to close function argument list", token)
 			end
 
-			return self:Instruction(trace, "fun", fun, exprs)
+			return self:Instruction(trace, "call", fun, exprs)
 		end
 	end
 
