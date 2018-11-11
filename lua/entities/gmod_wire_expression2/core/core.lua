@@ -24,7 +24,7 @@ __e2setcost(0)
 
 registerOperator("seq", "", "", function(self, args)
 	self.prf = self.prf + args[2]
-	if self.prf > e2_tickquota or (tobool(self.player:GetPData("expression2_unlimited",false)) and self.prf > 100000) then error("perf", 0) end
+	if self.prf > e2_tickquota then error("perf", 0) end
 
 	local n = #args
 	if n == 2 then return end

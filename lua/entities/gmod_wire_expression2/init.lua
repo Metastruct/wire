@@ -120,10 +120,7 @@ local SysTime = SysTime
 function ENT:Execute()
 	if self.error then return end
 	if self.context.resetting then return end
-	local pl = self.player
-	local unlimited = pl:IsValid() and pl:GetPData("expression2_unlimited")
-	unlimited = unlimited and unlimited~='0' and unlimited~=''
-	
+
 	for k, v in pairs(self.tvars) do
 		self.GlobalScope[k] = copytype(wire_expression_types2[v][2])
 	end
@@ -171,7 +168,7 @@ function ENT:Execute()
 		self.GlobalScope[k] = copytype(wire_expression_types2[v][2])
 	end
 
-	if self.context.prfcount + self.context.prf - e2_softquota > e2_hardquota or (unlimited and self.context.prfcount + self.context.prf - 1000000 > 1000000) then
+	if self.context.prfcount + self.context.prf - e2_softquota > e2_hardquota then
 		self:Error("Expression 2 (" .. self.name .. "): tick quota exceeded", "hard quota exceeded")
 	end
 
