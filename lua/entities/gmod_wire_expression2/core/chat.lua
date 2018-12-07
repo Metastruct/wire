@@ -16,11 +16,13 @@ registerCallback("destruct",function(self)
 	ChatAlert[self.entity] = nil
 end)
 
-hook.Add("PlayerSay","Exp2TextReceiving", function(ply, text, teamchat)
-	local entry = { text, CurTime(), ply, teamchat }
+hook.Add("PlayerSay","Exp2TextReceiving", function(ply, text, teamchat, localchat )
+	if teamchat or localchat then return end
+
+	local entry = { text, CurTime(), ply }
 	TextList[ply:EntIndex()] = entry
 	TextList.last = entry
-
+	
 	runByChat = 1
 	chipHideChat = false
 	local hideCurrent = false
