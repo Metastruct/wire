@@ -301,8 +301,10 @@ E2Helper.Descriptions["vehicle(e:)"] = "Returns the entity of the vehicle that t
 E2Helper.Descriptions["ejectPod(e:)"] = "Ejects player in vehicle"
 E2Helper.Descriptions["lockPod(e:n)"] = "1 locks and 0 unlocks the vehicle"
 E2Helper.Descriptions["killPod(e:)"] = "Kills player in vehicle"
+E2Helper.Descriptions["podStripWeapons(e:)"] = "Strips player in vehicle"
 E2Helper.Descriptions["weapon(e:s)"] = "Returns the weapon with specified class of player E"
 E2Helper.Descriptions["weapon(e:)"] = "Returns the weapon that player E is currently holding"
+E2Helper.Descriptions["weapons(e:)"] = "Returns the weapons that player E has"
 E2Helper.Descriptions["clip1(e:)"] = "Returns the amount of ammo in the primary clip of weapon E, -1 if there is no primary clip"
 E2Helper.Descriptions["clip2(e:)"] = "Returns the amount of ammo in the secondary clip of weapon E, -1 if there is no secondary clip 1)"
 E2Helper.Descriptions["primaryAmmoType(e:)"] = "Returns the name of the primary weapon's ammo"
@@ -1404,6 +1406,9 @@ E2Helper.Descriptions["egpMaxUmsgPerSecond()"] = "Returns the maximum number of 
 E2Helper.Descriptions["egpNumObjects(xwl:)"] = "Returns the number of objects on the screen"
 E2Helper.Descriptions["egpRunOnQueue(xwl:n)"] = "Set to 1 if you want your E2 to be triggered once the queue has finished sending all items in the queue for the screen"
 E2Helper.Descriptions["egpVertices(xwl:n)"] = "Returns an array of the vertices of the object"
+E2Helper.Descriptions["egpObjectIndexes(xwl:)"] = "Returns an array containing all object indexes being used"
+E2Helper.Descriptions["egpObjectType(xwl:n)"] = "Returns the type of the object with specified index"
+E2Helper.Descriptions["egpObjectTypes(xwl:)"] = "Returns an array whose keys are bound to object index, and value being the type of particular object"
 
 E2Helper.Descriptions["egp3DTracker(xwl:nv)"] = "Creates a 3D tracker object at specified world position"
 E2Helper.Descriptions["egpBox(xwl:nxv2xv2)"] = "Creates a box. First 2D vector is the position, second is size"
@@ -1411,12 +1416,12 @@ E2Helper.Descriptions["egpBoxOutline(xwl:nxv2xv2)"] = "Creates an outline box. F
 E2Helper.Descriptions["egpCircle(xwl:nxv2xv2)"] = "Creates a circle. First 2D vector is the position, second is size"
 E2Helper.Descriptions["egpCircleOutline(xwl:nxv2xv2)"] = "Creates an outline circle. First 2D vector is the position, second is size"
 E2Helper.Descriptions["egpLine(xwl:nxv2xv2)"] = "Creates a line. First 2D vector is the start position, second is end position"
-E2Helper.Descriptions["egpLineStrip(xwl:n...)"] = "Creates a curve with specified points as 2D vectors"
-E2Helper.Descriptions["egpLineStrip(xwl:nr)"] = "Creates a curve with specified points as array of 2D vectors"
-E2Helper.Descriptions["egpPoly(xwl:nr)"] = "Creates a polygon with specified points as array of 2D/4D vectors"
-E2Helper.Descriptions["egpPoly(xwl:n...)"] = "Creates a polygon with specified points as 2D/4D vectors"
-E2Helper.Descriptions["egpPolyOutline(xwl:nr)"] = "Creates a outline polygon with specified points as array of 2D/4D vectors"
-E2Helper.Descriptions["egpPolyOutline(xwl:n...)"] = "Creates a outline polygon with specified points as 2D/4D vectors"
+E2Helper.Descriptions["egpLineStrip(xwl:n...)"] = "Creates a curve with specified points as 2D/4D vectors (x,y)/(x,y,u,v)"
+E2Helper.Descriptions["egpLineStrip(xwl:nr)"] = "Creates a curve with specified points as array of 2D/4D vectors (x,y)/(x,y,u,v)"
+E2Helper.Descriptions["egpPoly(xwl:nr)"] = "Creates a polygon with specified points as array of 2D/4D vectors (x,y)/(x,y,u,v)"
+E2Helper.Descriptions["egpPoly(xwl:n...)"] = "Creates a polygon with specified points as 2D/4D vectors (x,y)/(x,y,u,v)"
+E2Helper.Descriptions["egpPolyOutline(xwl:nr)"] = "Creates a outline polygon with specified points as array of 2D/4D vectors (x,y)/(x,y,u,v)"
+E2Helper.Descriptions["egpPolyOutline(xwl:n...)"] = "Creates a outline polygon with specified points as 2D/4D vectors (x,y)/(x,y,u,v)"
 E2Helper.Descriptions["egpRoundedBox(xwl:nxv2xv2)"] = "Creates a rounded box. First 2D vector is the position, second is size"
 E2Helper.Descriptions["egpRoundedBoxOutline(xwl:nxv2xv2)"] = "Creates a rounded outline box. First 2D vector is the position, second is size"
 E2Helper.Descriptions["egpText(xwl:nsxv2)"] = "Creates a text object"
@@ -1484,6 +1489,12 @@ E2Helper.Descriptions["soundVolume(snn)"] = "soundVolume(string Index, Volume, F
 E2Helper.Descriptions["soundVolume(sn)"] = "soundVolume(string Index, Volume), where Volume is a number between 0 and 1. Default Volume is 1"
 E2Helper.Descriptions["soundVolume(nn)"] = "soundVolume(integer Index, Volume), where Volume is a number between 0 and 1. Default Volume is 1"
 E2Helper.Descriptions["soundVolume(nnn)"] = "soundVolume(integer Index, Volume, FadeTime), where Volume is a number between 0 and 1. Default Volume is 1"
+
+-- UTF-8
+E2Helper.Descriptions["toUnicodeChar(...)"] = "Returns the UTF-8 string from the given Unicode code-points"
+E2Helper.Descriptions["toUnicodeChar(r)"] = "Returns the UTF-8 string from the given Unicode code-points"
+E2Helper.Descriptions["toUnicodeByte(s:nn)"] = "Returns the Unicode code-points from the given UTF-8 string"
+E2Helper.Descriptions["unicodeLength(s:nn)"] = "Returns the length of the given UTF-8 string"
 
 ---- Custom ----
 -- Effect

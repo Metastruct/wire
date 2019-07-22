@@ -297,6 +297,7 @@ e2function void setMass(mass)
 	local mass = Clamp(mass, 0.001, 50000)
 	local phys = self.entity:GetPhysicsObject()
 	phys:SetMass(mass)
+	duplicator.StoreEntityModifier(self.entity, "mass", { Mass = mass })
 end
 
 e2function void entity:setMass(mass)
@@ -307,6 +308,7 @@ e2function void entity:setMass(mass)
 	local mass = Clamp(mass, 0.001, 50000)
 	local phys = this:GetPhysicsObject()
 	phys:SetMass(mass)
+	duplicator.StoreEntityModifier(this, "mass", { Mass = mass })
 end
 
 e2function number entity:volume()
@@ -601,6 +603,16 @@ e2function void entity:ejectPod()
 	if not isOwner(self, this) then return end
 	local ply = this:GetDriver()
 	if IsValid(ply) then ply:ExitVehicle() end
+end
+
+e2function void entity:podStripWeapons()
+	if not IsValid(this) or not this:IsVehicle() then return end
+	if not isOwner(self, this) then return end
+	local ply = this:GetDriver()
+	if IsValid(ply) and next(ply:GetWeapons()) ~= nil then
+		ply:StripWeapons()
+		ply:ChatPrint("Your weapons have been stripped!")
+	end
 end
 
 /******************************************************************************/

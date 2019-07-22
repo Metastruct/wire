@@ -1431,43 +1431,43 @@ Text here]# ]]
 				end
 
 				do
-				local btn = vgui.Create("DButton", panel)
-				btn:SetText("Upload")
-				btn:SetSize(57, 18)
-				timer.Simple(0, function() btn:SetPos(panel:GetWide() - btn:GetWide() * 2 - 6, 4) end)
-				btn.DoClick = function(pnl)
-					WireLib.Expression2Upload(v)
-				end
-				end
-
-				do
-				local btn = vgui.Create("DButton", panel)
-				btn:SetText("Download")
-				btn:SetSize(57, 18)
-				timer.Simple(0, function() btn:SetPos(panel:GetWide() - btn:GetWide() - 4, 4) end)
-				btn.DoClick = function(pnl)
-					RunConsoleCommand("wire_expression_requestcode", v:EntIndex())
-				end
+					local btn = vgui.Create("DButton", panel)
+					btn:SetText("Upload")
+					btn:SetSize(57, 18)
+					timer.Simple(0, function() btn:SetPos(panel:GetWide() - btn:GetWide() * 2 - 6, 4) end)
+					btn.DoClick = function(pnl)
+						WireLib.Expression2Upload(v)
+					end
 				end
 
 				do
-				local btn = vgui.Create("DButton", panel)
-				btn:SetText("Halt execution")
-				btn:SetSize(75, 18)
-				timer.Simple(0, function() btn:SetPos(panel:GetWide() - btn:GetWide() - 4, 24) end)
-				btn.DoClick = function(pnl)
-					RunConsoleCommand("wire_expression_forcehalt", v:EntIndex())
+					local btn = vgui.Create("DButton", panel)
+					btn:SetText("Download")
+					btn:SetSize(57, 18)
+					timer.Simple(0, function() btn:SetPos(panel:GetWide() - btn:GetWide() - 4, 4) end)
+					btn.DoClick = function(pnl)
+						RunConsoleCommand("wire_expression_requestcode", v:EntIndex())
+					end
 				end
 
-				local btn2 = vgui.Create("DButton", panel)
-				btn2:SetText("Reset")
-				btn2:SetSize(39, 18)
-				timer.Simple(0, function() btn2:SetPos(panel:GetWide() - btn2:GetWide() - btn:GetWide() - 6, 24) end)
-				btn2.DoClick = function(pnl)
-					RunConsoleCommand("wire_expression_reset", v:EntIndex())
+				do
+					local btn = vgui.Create("DButton", panel)
+					btn:SetText("Halt execution")
+					btn:SetSize(75, 18)
+					timer.Simple(0, function() btn:SetPos(panel:GetWide() - btn:GetWide() - 4, 24) end)
+					btn.DoClick = function(pnl)
+						RunConsoleCommand("wire_expression_forcehalt", v:EntIndex())
+					end
+
+					local btn2 = vgui.Create("DButton", panel)
+					btn2:SetText("Reset")
+					btn2:SetSize(39, 18)
+					timer.Simple(0, function() btn2:SetPos(panel:GetWide() - btn2:GetWide() - btn:GetWide() - 6, 24) end)
+					btn2.DoClick = function(pnl)
+						RunConsoleCommand("wire_expression_reset", v:EntIndex())
+					end
 				end
 			end
-		end
 		end
 		dlist2:SetTall(size + 2)
 		dlist:InvalidateLayout()
@@ -1823,16 +1823,16 @@ function Editor:LoadFile(Line, forcenewtab)
 		end
 
 		local _, tabtext = getPreferredTitles(Line, str)
-			local tab
-			if self.NewTabOnOpen:GetBool() or forcenewtab then
-				tab = self:CreateTab(tabtext).Tab
-			else
-				tab = self:GetActiveTab()
-				tab:SetText(tabtext)
-				self.C.TabHolder:InvalidateLayout()
-			end
-			self:SetActiveTab(tab)
-			self:ChosenFile(Line)
+		local tab
+		if self.NewTabOnOpen:GetBool() or forcenewtab then
+			tab = self:CreateTab(tabtext).Tab
+		else
+			tab = self:GetActiveTab()
+			tab:SetText(tabtext)
+			self.C.TabHolder:InvalidateLayout()
+		end
+		self:SetActiveTab(tab)
+		self:ChosenFile(Line)
 
 		self:SetCode(str)
 	end
@@ -1848,8 +1848,8 @@ function Editor:Close()
 	self.chip = false
 
 	self:SaveEditorSettings()
-	
-        hook.Run("WireEditorClose", self)
+
+	hook.Run("WireEditorClose", self)
 end
 
 function Editor:Setup(nTitle, nLocation, nEditorType)

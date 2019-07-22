@@ -501,7 +501,7 @@ if SERVER then
           Buffer.Entity.Memory[k] = v
         end
         Buffer.Entity:ShowOutputs()
-      elseif Buffer.Entity:GetClass() == "gmod_wire_gpu" then
+      elseif (Buffer.Entity:GetClass() == "gmod_wire_gpu") or (Buffer.Entity:GetClass() == "gmod_wire_spu") then
         Buffer.Entity:WriteCell(65535,0)
         if Buffer.Entity.WriteCell then
           for k,v in pairs(Buffer.Data) do
@@ -1170,8 +1170,8 @@ GPU(309, "RESERVED",      2,    0.0,    0,         "",      "",      "")
 SPU(320, "CHRESET" ,      1,    1.0,    0,         "CHAN",  "",      "Reset channel")
 SPU(321, "CHSTART",       1,    1.0,    0,         "CHAN",  "",      "Start sound on channel")
 SPU(322, "CHSTOP",        1,    1.0,    0,         "CHAN",  "",      "Stop sound on channel")
-SPU(323, "RESERVED",      1,    0.0,    0,         "",      "",      "")
-SPU(324, "RESERVED",      1,    0.0,    0,         "",      "",      "")
+SPU(323, "CHTRIGGER",     1,    1.0,    0,         "CHAN",  "",      "Trigger the ADSR envelope on channel")
+SPU(324, "CHRELEASE",     1,    1.0,    0,         "CHAN",  "",      "Release the ADSR envelope on channel")
 SPU(325, "RESERVED",      1,    0.0,    0,         "",      "",      "")
 SPU(326, "RESERVED",      1,    0.0,    0,         "",      "",      "")
 SPU(327, "RESERVED",      1,    0.0,    0,         "",      "",      "")
