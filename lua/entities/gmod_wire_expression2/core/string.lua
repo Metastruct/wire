@@ -8,6 +8,12 @@
 // TODO: benchmarks!
 
 local string = string -- optimization
+local function limitlen(str)
+	if str and #str>1024*1024 then
+		error ("string too long",2)
+	end
+	return str
+end
 
 /******************************************************************************/
 
@@ -103,7 +109,7 @@ registerOperator("add", "ss", "s", function(self, args)
 
 	self.prf = self.prf + #rv1*0.01 + #rv2*0.01
 
-	return rv1 .. rv2
+	return limitlen(rv1 .. rv2)
 end)
 
 /******************************************************************************/
@@ -114,7 +120,7 @@ registerOperator("add", "sn", "s", function(self, args)
 
 	self.prf = self.prf + #rv1*0.01
 
-	return rv1 .. tostring(rv2)
+	return limitlen(rv1 .. tostring(rv2))
 end)
 
 registerOperator("add", "ns", "s", function(self, args)
@@ -123,7 +129,7 @@ registerOperator("add", "ns", "s", function(self, args)
 
 	self.prf = self.prf + #rv2*0.01
 
-	return tostring(rv1) .. rv2
+	return limitlen(tostring(rv1) .. rv2)
 end)
 
 /******************************************************************************/
@@ -134,7 +140,7 @@ registerOperator("add", "sv", "s", function(self, args)
 
 	self.prf = self.prf + #rv1*0.01
 
-	return ("%s[%s,%s,%s]"):format( rv1, rv2[1], rv2[2], rv2[3] )
+	return limitlen(("%s[%s,%s,%s]"):format( rv1, rv2[1], rv2[2], rv2[3] ))
 end)
 
 registerOperator("add", "vs", "s", function(self, args)
@@ -143,7 +149,7 @@ registerOperator("add", "vs", "s", function(self, args)
 
 	self.prf = self.prf + #rv2*0.01
 
-	return ("[%s,%s,%s]%s"):format( rv1[1],rv1[2],rv1[3],rv2)
+	return limitlen(("[%s,%s,%s]%s"):format( rv1[1],rv1[2],rv1[3],rv2))
 end)
 
 /******************************************************************************/
@@ -154,7 +160,7 @@ registerOperator("add", "sa", "s", function(self, args)
 
 	self.prf = self.prf + #rv1*0.01
 
-	return ("%s[%s,%s,%s]"):format( rv1,rv2[1],rv2[2],rv2[3] )
+	return limitlen(("%s[%s,%s,%s]"):format( rv1,rv2[1],rv2[2],rv2[3] ))
 end)
 
 registerOperator("add", "as", "s", function(self, args)
@@ -163,7 +169,7 @@ registerOperator("add", "as", "s", function(self, args)
 
 	self.prf = self.prf + #rv2*0.01
 
-	return ("[%s,%s,%s]%s"):format( rv1[1],rv1[2],rv1[3],rv2)
+	return limitlen(("[%s,%s,%s]%s"):format( rv1[1],rv1[2],rv1[3],rv2))
 end)
 
 /******************************************************************************/
@@ -313,7 +319,8 @@ registerFunction("repeat", "s:n", "s", function(self,args)
 	local op1, op2 = args[2], args[3]
 	local rv1, rv2 = op1[1](self, op1), math.abs(op2[1](self, op2))
 	self.prf = self.prf + #rv1 * rv2 * 0.01
-	return rv1:rep(rv2)
+	assert(#rv1*rv2<1024*1024,"string too long")
+	return limitlen(rv1:rep(rv2))
 end)
 
 registerFunction("trim", "s:", "s", function(self,args)
@@ -376,17 +383,17 @@ end
 --- Finds and replaces every occurrence of <needle> with <new> without regular expressions
 e2function string string:replace(string needle, string new)
 	if needle == "" then return this end
-	return this:Replace( needle, new)
+	return limitlen(this:Replace( limitlen(needle), limitlen(new)))
 end
 
 ---  Finds and replaces every occurrence of <pattern> with <new> using regular expressions. Prints malformed string errors to the chat area.
 e2function string string:replaceRE(string pattern, string new)
-	local OK, NewStr = pcall(gsub, this, pattern, new)
+	local OK, NewStr = pcall(gsub, this, limitlen(pattern), limitlen(new))
 	if not OK then
 		self.player:ChatPrint(NewStr)
 		return ""
 	else
-		return NewStr or ""
+		return limitlen(NewStr) or ""
 	end
 end
 
@@ -426,7 +433,7 @@ e2function string format(string fmt, ...)
 		self.player:ChatPrint(ret)
 		return ""
 	end
-	return ret
+	return limitlen(ret)
 end
 
 /******************************************************************************/
