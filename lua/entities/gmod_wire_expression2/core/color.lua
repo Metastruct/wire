@@ -107,7 +107,7 @@ end
 
 
 local math=math
-local function HSVToRGB( hue, saturation, value )
+local function _HSVToRGB( hue, saturation, value )
 	-- Returns the RGB equivalent of the given HSV-defined color
 	-- (adapted from some code found around the web)
 
@@ -142,7 +142,7 @@ local function HSVToRGB( hue, saturation, value )
 end
 
 local function HSVToRGB(H,S,V)
-	local r,g,b = HSVToRGB(H,S,V)
+	local r,g,b = _HSVToRGB(H,S,V)
 	return r*255,g*255,b*255
 end
 
