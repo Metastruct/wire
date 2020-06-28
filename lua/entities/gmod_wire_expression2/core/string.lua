@@ -319,7 +319,9 @@ registerFunction("repeat", "s:n", "s", function(self,args)
 	local op1, op2 = args[2], args[3]
 	local rv1, rv2 = op1[1](self, op1), math.abs(op2[1](self, op2))
 	self.prf = self.prf + #rv1 * rv2 * 0.01
+
 	assert(#rv1*rv2<1024*1024,"string too long")
+	if self.prf > e2_tickquota then error("perf", 0) end
 	return limitlen(rv1:rep(rv2))
 end)
 

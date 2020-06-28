@@ -69,12 +69,6 @@ end
 
 __e2setcost(5)
 
-e2function string entity:name()
-	if(not IsValid(this)) then return "" end
-	if(not this:IsPlayer()) then return "" end
-	return this:Name()
-end
-
 e2function string entity:steamID()
 	if(not IsValid(this)) then return "" end
 	if(not this:IsPlayer()) then return "" end
@@ -412,6 +406,30 @@ e2function string keyClkPressedBind()
 	return self.data.runOnKeys.pressedBind
 end
 
+-- Use Support --
+
+__e2setcost(50)
+--- Makes the chip "Use"able
+e2function void runOnUse(value)
+	if value != 0 then
+		self.entity:SetUseType( SIMPLE_USE )
+		self.entity.Use = function(selfEnt,activator)
+			self.data.runByUse = activator
+			selfEnt:Execute()
+			self.data.runByUse = NULL
+		end
+	else
+		self.entity.Use = nil
+	end
+end
+
+__e2setcost(1)
+--- Returns the entity who is using the chip
+e2function entity useClk()
+	return self.data.runByUse or NULL
+end
+
+
 -- isTyping
 local plys = {}
 concommand.Add("E2_StartChat",function(ply,cmd,args) plys[ply] = true end)
@@ -424,6 +442,7 @@ end
 
 --------------------------------------------------------------------------------
 
+__e2setcost(2)
 local Trusts
 
 if CPPI and debug.getregistry().Player.CPPIGetFriends then
