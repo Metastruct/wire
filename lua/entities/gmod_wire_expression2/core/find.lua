@@ -60,6 +60,9 @@ local forbidden_classes = {
 	["predicted_viewmodel"] = true,
 	["gmod_ghost"] = true,
 	["coin"] = true,
+	["mining_rock"] = true,
+	["mining_ore"] = true,
+	["mining_xen_crystal"] = true,
 }
 local function filter_default(self)
 	local chip = self.entity
