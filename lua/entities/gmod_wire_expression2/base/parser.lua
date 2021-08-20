@@ -33,7 +33,9 @@ Stmt7 ← (Var ("+=" / "-=" / "*=" / "/="))? Stmt8
 Stmt8 ← "local"? (Var (&"[" Index ("=" Stmt8)? / "=" Stmt8))? Stmt9
 Stmt9 ← ("switch" "(" Expr1 ")" "{" SwitchBlock)? Stmt10
 Stmt10 ← (FunctionStmt / ReturnStmt)? Stmt11
-Stmt11 ← ("#include" String)? Expr1
+Stmt11 ← ("#include" String)? Stmt12
+Stmt12 ← ("try" Block "catch" "(" Var ")" Block)? Stmt13
+Stmt13 ← ("do" Block "while" Cond)? Expr1
 
 FunctionStmt ← "function" FunctionHead "(" FunctionArgs Block
 FunctionHead ← (Type Type ":" Fun / Type ":" Fun / Type Fun / Fun)
@@ -254,7 +256,8 @@ function Parser:Stmt2()
 	if self:AcceptRoamingToken("whl") then
 		local trace = self:GetTokenTrace()
 		loopdepth = loopdepth + 1
-		local whl = self:Instruction(trace, "whl", self:Cond(), self:Block("while condition"))
+		local whl = self:Instruction(trace, "whl", self:Cond(), self:Block("while condition"),
+			false) -- Skip condition check first time?
 		loopdepth = loopdepth - 1
 		return whl
 	end
@@ -708,6 +711,56 @@ function Parser:Stmt11()
 		self.includes[#self.includes + 1] = Path
 
 		return self:Instruction(Trace, "inclu", Path)
+	end
+
+	return self:Stmt12()
+end
+
+function Parser:Stmt12()
+	if self:AcceptRoamingToken("try") then
+		local trace = self:GetTokenTrace()
+		local stmt = self:Block("try block")
+		if self:AcceptRoamingToken("catch") then
+			if not self:AcceptRoamingToken("lpa") then
+				self:Error("Left parenthesis (() expected after catch keyword")
+			end
+
+			if not self:AcceptRoamingToken("var") then
+				self:Error("Variable expected after left parenthesis (() in catch statement")
+			end
+			local var_name = self:GetTokenData()
+
+			if not self:AcceptRoamingToken("rpa") then
+				self:Error("Right parenthesis ()) missing, to close catch statement")
+			end
+
+			return self:Instruction(trace, "try", stmt, var_name, self:Block("catch block") )
+		else
+			self:Error("Try block must be followed by catch statement")
+		end
+	end
+	return self:Stmt13()
+end
+
+function Parser:Stmt13()
+	if self:AcceptRoamingToken("do") then
+		local trace = self:GetTokenTrace()
+
+		loopdepth = loopdepth + 1
+		local code = self:Block("do keyword")
+
+		if not self:AcceptRoamingToken("whl") then
+			self:Error("while expected after do and code block (do {...} )")
+		end
+
+		local condition = self:Cond()
+
+
+		local whl = self:Instruction(trace, "whl", condition, code,
+			true) -- Skip condition check first time?
+		loopdepth = loopdepth - 1
+
+		return whl
 	end
 
 	return self:Expr1()

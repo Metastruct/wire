@@ -39,6 +39,18 @@ function E2Lib.setSubMaterial(ent, index, material)
 	duplicator.StoreEntityModifier(ent, "submaterial", { ["SubMaterialOverride_"..index] = material })
 end
 
+-- Returns a default e2 table.
+function E2Lib.newE2Table()
+	return {n={},ntypes={},s={},stypes={},size=0}
+end
+
+-- Returns a cloned table of the variable given if it is a table.
+local istable = istable
+local table_Copy = table.Copy
+function E2Lib.fixDefault(var)
+	return istable(var) and table_Copy(var) or var
+end
+
 -- getHash
 -- Returns a hash for the given string
 
@@ -725,3 +737,47 @@ hook.Add("InitPostEntity", "e2lib", function()
 		end
 	end
 end)
+
+--- Valid file extensions kept to avoid trying to make files with extensions gmod doesn't allow.
+-- https://wiki.facepunch.com/gmod/file.Write
+local file_extensions = {
+	["txt"] = true,
+	["dat"] = true,
+	["json"] = true,
+	["xml"] = true,
+	["csv"] = true,
+	["jpg"] = true,
+	["jpeg"] = true,
+	["png"] = true,
+	["vtf"] = true,
+	["vmt"] = true,
+	["mp3"] = true,
+	["wav"] = true,
+	["ogg"] = true
+}
+
+-- Returns whether the file has an extension garrysmod can write to, to avoid useless net messages, etc
+function E2Lib.isValidFileWritePath(path)
+	local ext = string.GetExtensionFromFilename(path)
+	if ext then return file_extensions[string.lower(ext)] end
+end
+
+-- Different from Context:throw, which does not error the chip if
+-- @strict is not enabled and instead returns a default value.
+-- This is what Context:throw calls internally if @strict
+-- By default E2 can catch these errors.
+function E2Lib.raiseException(msg, level, trace, can_catch)
+	error({
+		catchable = (can_catch == nil) and true or can_catch,
+		msg = msg,
+		trace = trace
+	}, level)
+end
+
+--- Unpacks either an exception object as seen above or an error string.
+function E2Lib.unpackException(struct)
+	if isstring(struct) then
+		return false, struct, nil
+	end
+	return struct.catchable, struct.msg, struct.trace
+end

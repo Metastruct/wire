@@ -65,7 +65,7 @@ end
 
 --- Returns 1 if the chip is being executed because of a chat event by player <ply>. Returns 0 otherwise.
 e2function number chatClk(entity ply)
-	if not IsValid(ply) then return 0 end
+	if not IsValid(ply) then return self:throw("Invalid player!", 0) end
 	local cause = self.data.runByChat
 	return cause and cause[3] == ply and 1 or 0
 end
@@ -115,8 +115,8 @@ end
 
 --- Returns what the player <this> last said.
 e2function string entity:lastSaid()
-	if not IsValid(this) then return "" end
-	if not this:IsPlayer() then return "" end
+	if not IsValid(this) then return self:throw("Invalid entity!", "") end
+	if not this:IsPlayer() then return self:throw("Not a player", "") end
 
 	local entry = TextList[this:EntIndex()]
 	if not entry then return "" end
@@ -126,8 +126,8 @@ end
 
 --- Returns when the given player last said something.
 e2function number entity:lastSaidWhen()
-	if not IsValid(this) then return 0 end
-	if not this:IsPlayer() then return 0 end
+	if not IsValid(this) then return self:throw("Invalid entity!", 0) end
+	if not this:IsPlayer() then return self:throw("Not a player", 0) end
 
 	local entry = TextList[this:EntIndex()]
 	if not entry then return 0 end
@@ -137,8 +137,8 @@ end
 
 --- Returns 1 if the last message was sent in the team chat, 0 otherwise.
 e2function number entity:lastSaidTeam()
-	if not IsValid(this) then return 0 end
-	if not this:IsPlayer() then return 0 end
+	if not IsValid(this) then return self:throw("Invalid entity!", 0) end
+	if not this:IsPlayer() then return self:throw("Not a player", 0) end
 
 	local entry = TextList[this:EntIndex()]
 	if not entry then return 0 end
