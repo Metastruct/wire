@@ -400,16 +400,23 @@ e2function number string:find(string needle, start)
 	return this:find( needle, start, true) or 0
 end
 
+
 --- Finds and replaces every occurrence of <needle> with <new> without regular expressions
 e2function string string:replace(string needle, string new)
 	if needle == "" then return this end
-	return limitlen(this:Replace( limitlen(needle), limitlen(new)))
+	self.prf = self.prf + #this * 0.1 + #new * 0.1
+	if self.prf > e2_tickquota then error("perf", 0) end
+	return limitlen(this:Replace(limitlen(needle), limitlen(new)))
 end
-
 
 ---  Finds and replaces every occurrence of <pattern> with <new> using regular expressions. Prints malformed string errors to the chat area.
 e2function string string:replaceRE(string pattern, string new)
-	local OK, Ret = pcall(function() checkregex(this, limitlen(pattern)) return gsub(limitlen(this), limitlen(pattern), limitlen(new)) end)
+	this = limitlen(this)
+	new = limitlen(new)
+	pattern = limitlen(pattern)
+	self.prf = self.prf + #this * 0.1 + #new * 0.1
+	if self.prf > e2_tickquota then error("perf", 0) end
+	local OK, Ret = pcall(function() checkregex(this, pattern) return gsub(this, pattern, new) end)
 	if not OK then
 		self.player:ChatPrint(Ret)
 		return ""
