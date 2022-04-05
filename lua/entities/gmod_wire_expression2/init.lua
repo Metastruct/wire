@@ -584,18 +584,16 @@ hook.Add("EntityRemoved", "Wire_Expression2_Player_Disconnected", function(ent)
 end)
 
 hook.Add("PlayerAuthed", "Wire_Expression2_Player_Authed", function(ply, sid, uid)
-	local c
 	for _, ent in ipairs(ents.FindByClass("gmod_wire_expression2")) do
 		if (ent.uid == uid) then
 			ent.context.player = ply
 			ent.player = ply
 			ent:SetNWEntity("player", ply)
 			if (ent.disconnectPaused) then
-				c = ent.disconnectPaused
-				ent:SetColor(Color(c[1], c[2], c[3], c[4]))
+				ent:SetColor(ent.disconnectPaused)
 				ent:SetRenderMode(ent:GetColor().a == 255 and RENDERMODE_NORMAL or RENDERMODE_TRANSALPHA)
 				ent.error = false
-				ent.disconnectPaused = false
+				ent.disconnectPaused = nil
 				ent:SetOverlayText(ent.name)
 			end
 		end
