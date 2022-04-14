@@ -107,9 +107,11 @@ function ENT:Initialize()
 	self:SetMoveType(MOVETYPE_VPHYSICS)
 	self:SetSolid(SOLID_VPHYSICS)
 
+	self.name = "(generic)"
 	self.Inputs = WireLib.CreateInputs(self, {})
 	self.Outputs = WireLib.CreateOutputs(self, {})
 
+	self.error = true
 	self:UpdateOverlay(true)
 	self:SetColor(Color(255, 0, 0, self:GetColor().a))
 end
@@ -152,13 +154,14 @@ function ENT:Execute()
 
 	self.context:PopScope()
 
+	local forceTriggerOutputs = self.first or self.duped
 	self.first = false -- if hooks call execute
 	self.duped = false -- if hooks call execute
 	self.context.triggerinput = nil -- if hooks call execute
 
 	self:PCallHook('postexecute')
 
-	self:TriggerOutputs()
+	self:TriggerOutputs(forceTriggerOutputs)
 
 	for k, v in pairs(self.inports[3]) do
 		if self.GlobalScope[k] then
@@ -521,9 +524,9 @@ function ENT:TriggerInput(key, value)
 	end
 end
 
-function ENT:TriggerOutputs()
+function ENT:TriggerOutputs(force)
 	for key, t in pairs(self.outports[3]) do
-		if self.GlobalScope.vclk[key] or self.first then
+		if self.GlobalScope.vclk[key] or force then
 			if wire_expression_types[t][4] then
 				WireLib.TriggerOutput(self, key, wire_expression_types[t][4](self.context, self.GlobalScope[key]))
 			else
@@ -539,8 +542,7 @@ function ENT:ApplyDupeInfo(ply, ent, info, GetEntByID, GetConstByID)
 	if not self.error then
 		for k, v in pairs(self.dupevars) do
 			self.GlobalScope[k] = v
-		end -- Rusketh Broke this :(
-		-- table.Merge(self.context.vars, self.dupevars)
+		end
 		self.dupevars = nil
 
 		self.duped = true
@@ -589,13 +591,17 @@ hook.Add("PlayerAuthed", "Wire_Expression2_Player_Authed", function(ply, sid, ui
 			ent.context.player = ply
 			ent.player = ply
 			ent:SetNWEntity("player", ply)
-			if (ent.disconnectPaused) then
-				ent:SetColor(ent.disconnectPaused)
+				ent:SetColor(Color(c[1], c[2], c[3], c[4]))
 				ent:SetRenderMode(ent:GetColor().a == 255 and RENDERMODE_NORMAL or RENDERMODE_TRANSALPHA)
 				ent.error = false
 				ent.disconnectPaused = nil
 				ent:SetOverlayText(ent.name)
 			end
+		end
+	end
+	for _, ent in ipairs(ents.FindByClass("gmod_wire_hologram")) do
+		if ent.steamid == sid then
+			ent:SetPlayer(ply)
 		end
 	end
 end)
@@ -623,12 +629,11 @@ function MakeWireExpression2(player, Pos, Ang, model, buffer, name, inputs, outp
 		self.buffer = buffer
 		self:SetOverlayText(name)
 
-		self.inc_files = inc_files or {}
-
 		self.Inputs = WireLib.AdjustSpecialInputs(self, inputs[1], inputs[2])
 		self.Outputs = WireLib.AdjustSpecialOutputs(self, outputs[1], outputs[2])
 
-		self.dupevars = vars
+		self.inc_files = inc_files or {}
+		self.dupevars = vars or {}
 
 		self.filepath = filepath
 	else
@@ -679,7 +684,7 @@ local function enableEmergencyShutdown()
 					current_ram > halt_max_amount:GetInt() * 1000 then -- or if the current ram goes over a set limit
 
 					local e2s = ents.FindByClass("gmod_wire_expression2") -- find all E2s and halt them
-					for _,v in pairs( e2s ) do
+					for _,v in ipairs( e2s ) do
 						if not v.error then
 							-- immediately clear any memory the E2 may be holding
 							hook.Run("Wire_EmergencyRamClear")

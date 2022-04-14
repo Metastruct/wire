@@ -63,7 +63,7 @@ if SERVER then
 	-- Default MakeEnt function, override to use a different MakeWire* function
 	function WireToolObj:MakeEnt( ply, model, Ang, trace )
 		local ent = WireLib.MakeWireEnt( ply, {Class = self.WireClass, Pos=trace.HitPos, Angle=Ang, Model=model}, self:GetConVars() )
-		if ent.RestoreNetworkVars then ent:RestoreNetworkVars(self:GetDataTables()) end
+		if ent and ent.RestoreNetworkVars then ent:RestoreNetworkVars(self:GetDataTables()) end
 		return ent
 	end
 
@@ -74,8 +74,10 @@ if SERVER then
 	--
 	-- to prevent update, set TOOL.NoLeftOnClass = true
 	function WireToolObj:LeftClick_Update( trace )
-		if trace.Entity.Setup then trace.Entity:Setup(self:GetConVars()) end
-		if trace.Entity.RestoreNetworkVars then trace.Entity:RestoreNetworkVars(self:GetDataTables()) end
+		if trace.Entity:IsValid() then
+			if trace.Entity.Setup then trace.Entity:Setup(self:GetConVars()) end
+			if trace.Entity.RestoreNetworkVars then trace.Entity:RestoreNetworkVars(self:GetDataTables()) end
+		end
 	end
 
 	--
@@ -353,16 +355,30 @@ end
 -- function used by TOOL.BuildCPanel
 WireToolHelpers = {}
 
-if CLIENT then
-	-- gets the TOOL since TOOL.BuildCPanel isn't passed this var. wts >_<
-	function WireToolHelpers.GetTOOL(mode)
-		for _,wep in ipairs(LocalPlayer():GetWeapons()) do
-			if wep:GetClass() == "gmod_tool" then
-				return wep:GetToolObject(mode)
-			end
+-- gets the TOOL since TOOL.BuildCPanel isn't passed this var. wts >_<
+function WireToolHelpers.GetTOOL(mode, ply)
+	if CLIENT then ply = LocalPlayer() end
+	if not ply then return end
+
+	for _,wep in ipairs(ply:GetWeapons()) do
+		if wep:GetClass() == "gmod_tool" then
+			return wep:GetToolObject(mode)
 		end
 	end
+end
 
+-- similar to GetTool (above), gets the specified tool, but only if it's the currently actively held weapon by the player
+function WireToolHelpers.GetActiveTOOL(mode, ply)
+	if CLIENT then ply = LocalPlayer() end
+	if not ply then return end
+
+	local activeWep = ply:GetActiveWeapon()
+	if not IsValid(activeWep) or activeWep:GetClass() ~= "gmod_tool" or activeWep.Mode ~= mode then return end
+
+	return activeWep:GetToolObject(mode)
+end
+
+if CLIENT then
 	-- makes the preset control for use cause we're lazy
 	function WireToolHelpers.MakePresetControl(panel, mode, folder)
 		if not mode or not panel then return end
