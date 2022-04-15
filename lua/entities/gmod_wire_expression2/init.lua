@@ -591,14 +591,13 @@ hook.Add("PlayerAuthed", "Wire_Expression2_Player_Authed", function(ply, sid, ui
 			ent.context.player = ply
 			ent.player = ply
 			ent:SetNWEntity("player", ply)
-				ent:SetColor(Color(c[1], c[2], c[3], c[4]))
+				ent:SetColor(ent.disconnectPaused)
 				ent:SetRenderMode(ent:GetColor().a == 255 and RENDERMODE_NORMAL or RENDERMODE_TRANSALPHA)
 				ent.error = false
 				ent.disconnectPaused = nil
 				ent:SetOverlayText(ent.name)
 			end
 		end
-	end
 	for _, ent in ipairs(ents.FindByClass("gmod_wire_hologram")) do
 		if ent.steamid == sid then
 			ent:SetPlayer(ply)
