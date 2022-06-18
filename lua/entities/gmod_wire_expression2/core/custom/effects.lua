@@ -5,7 +5,12 @@ local wire_expression2_effect_burst_rate = CreateConVar( "wire_expression2_effec
 
 -- Use hook E2CanEffect to blacklist/whitelist effects
 local effect_blacklist = {
-	dof_node = true
+	dof_node = true,
+	beer_puke = true,
+	simfphys_exhaust = true,
+	simfphys_backfire = true,
+	rj_bolttrail = true,
+	dond_confetti = true
 }
 
 local function isAllowed( self )
