@@ -7,7 +7,7 @@ local floor = math.floor
 local Round = math.Round
 
 local function RGBClamp(r,g,b)
-	return Clamp(r,0,255),Clamp(g,0,255),Clamp(b,0,255)
+	return Clamp(r,0,255), Clamp(g,0,255), Clamp(b,0,255)
 end
 
 /******************************************************************************/
@@ -15,16 +15,16 @@ end
 __e2setcost(2)
 
 e2function vector entity:getColor()
-	if not IsValid(this) then return self:throw("Invalid entity!", {0, 0, 0}) end
+	if not IsValid(this) then return self:throw("Invalid entity!", Vector(0, 0, 0)) end
 
 	local c = this:GetColor()
-	return { c.r, c.g, c.b }
+	return Vector(c.r, c.g, c.b)
 end
 
 e2function vector4 entity:getColor4()
 	if not IsValid(this) then return self:throw("Invalid entity!", {0, 0, 0, 0}) end
 	local c = this:GetColor()
-	return {c.r,c.g,c.b,c.a}
+	return {c.r, c.g, c.b, c.a}
 end
 
 e2function number entity:getAlpha()
@@ -87,82 +87,60 @@ e2function void entity:setRenderMode(mode)
 end
 
 e2function vector entity:getPlayerColor()
-	if not IsValid(this) then return self:throw("Invalid entity!", {0, 0, 0}) end
-	if not this:IsPlayer() then return self:throw("Expected player but got an entity", {0, 0, 0}) end
+	if not IsValid(this) then return self:throw("Invalid entity!", Vector(0, 0, 0)) end
+	if not this:IsPlayer() then return self:throw("Expected player but got an entity", Vector(0, 0, 0)) end
 
 	local c = this:GetPlayerColor()
 
-	return { RGBClamp(Round(c.r * 255), Round(c.g * 255), Round(c.b * 255)) }
+	return Vector(RGBClamp(Round(c.r * 255), Round(c.g * 255), Round(c.b * 255)))
 end
 
 e2function vector entity:getWeaponColor()
-	if not IsValid(this) then return self:throw("Invalid entity!", {0, 0, 0}) end
-	if not this:IsPlayer() then return self:throw("Expected player but got an entity", {0, 0, 0}) end
+	if not IsValid(this) then return self:throw("Invalid entity!", Vector(0, 0, 0)) end
+	if not this:IsPlayer() then return self:throw("Expected player but got an entity", Vector(0, 0, 0)) end
 
 	local c = this:GetWeaponColor()
+	return Vector(RGBClamp(Round(c.r * 255), Round(c.g * 255), Round(c.b * 255)))
+end
 
-	return { RGBClamp(Round(c.r * 255), Round(c.g * 255), Round(c.b * 255)) }
+e2function void entity:setWeaponColor(vector c)
+	if not IsValid(this) then return self:throw("Invalid entity!", nil) end
+	if not isOwner(self, this) then return self:throw("You cannot set other player's weapon colors!", nil) end
+	if not this:IsPlayer() then return self:throw("You cannot set the weapon color of non-players!", nil) end
+
+	local r, g, b = RGBClamp(c[1], c[2], c[3])
+	this:SetWeaponColor( Vector(r / 255, g / 255, b / 255) )
+end
+
+e2function void entity:setPlayerColor(vector c)
+	if not IsValid(this) then return self:throw("Invalid entity!", nil) end
+	if not isOwner(self, this) then return self:throw("You cannot set other player's colors!", nil) end
+ 	if not this:IsPlayer() then return self:throw("You cannot set the player color of non-players!", nil) end
+
+	 local r, g, b = RGBClamp(c[1], c[2], c[3])
+	this:SetPlayerColor( Vector(r / 255, g / 255, b / 255) )
 end
 
 --- HSV
 
-
-local math=math
-local function _HSVToRGB( hue, saturation, value )
-	-- Returns the RGB equivalent of the given HSV-defined color
-	-- (adapted from some code found around the web)
-
-	-- If it's achromatic, just return the value, clamp yourself
-	if saturation == 0 then
-		return value,value,value
-	end
-	
-	hue=hue%360
-	
-	-- Get the hue sector
-	local hue_sector = math.floor( hue / 60 )
-	local hue_sector_offset = ( hue / 60 ) - hue_sector
-
-	local p = value * ( 1 - saturation )
-	local q = value * ( 1 - saturation * hue_sector_offset )
-	local t = value * ( 1 - saturation * ( 1 - hue_sector_offset ) )
-
-	if hue_sector == 0 then
-		return value, t, p
-	elseif hue_sector == 1 then
-		return q, value, p
-	elseif hue_sector == 2 then
-		return p, value, t
-	elseif hue_sector == 3 then
-		return p, q, value
-	elseif hue_sector == 4 then
-		return t, p, value
-	elseif hue_sector == 5 then
-		return value, p, q
-	end
-end
-
-local function HSVToRGB(H,S,V)
-	local r,g,b = _HSVToRGB(H,S,V)
-	return r*255,g*255,b*255
-end
-
 --- Converts <hsv> from the [http://en.wikipedia.org/wiki/HSV_color_space HSV color space] to the [http://en.wikipedia.org/wiki/RGB_color_space RGB color space]
 e2function vector hsv2rgb(vector hsv)
-	return { HSVToRGB(hsv[1], hsv[2], hsv[3]) }
+	local col = HSVToColor(math.Clamp(hsv[1] % 360, 0, 360), hsv[2], hsv[3])
+	return Vector(col.r, col.g, col.b)
 end
 
 e2function vector hsv2rgb(h, s, v)
-	return { HSVToRGB(h, s, v) }
+	local col = HSVToColor(math.Clamp(h % 360, 0, 360), s, v)
+	return Vector(col.r, col.g, col.b)
 end
 
 --- Converts <rgb> from the [http://en.wikipedia.org/wiki/RGB_color_space RGB color space] to the [http://en.wikipedia.org/wiki/HSV_color_space HSV color space]
 e2function vector rgb2hsv(vector rgb)
-	return { ColorToHSV(Color(rgb[1], rgb[2], rgb[3])) }
+	return Vector(ColorToHSV(Color(rgb[1], rgb[2], rgb[3])))
 end
 
 e2function vector rgb2hsv(r, g, b)
-	return { ColorToHSV(Color(r, g, b)) }
+	return Vector(ColorToHSV(Color(r, g, b)))
 end
 
 --- HSL
@@ -233,22 +211,22 @@ end
 
 --- Converts <hsl> HSL color space to RGB color space
 e2function vector hsl2rgb(vector hsl)
-	return { RGBClamp(Convert_hsl2rgb(hsl[1] / 360, hsl[2], hsl[3])) }
+	return Vector(RGBClamp(Convert_hsl2rgb(hsl[1] / 360, hsl[2], hsl[3])))
 end
 
 e2function vector hsl2rgb(h, s, l)
-	return { RGBClamp(Convert_hsl2rgb(h / 360, s, l)) }
+	return Vector(RGBClamp(Convert_hsl2rgb(h / 360, s, l)))
 end
 
 --- Converts <rgb> RGB color space to HSL color space
 e2function vector rgb2hsl(vector rgb)
 	local h,s,l = Convert_rgb2hsl(RGBClamp(rgb[1], rgb[2], rgb[3]))
-	return { floor(h * 360), s, l }
+	return Vector(floor(h * 360), s, l)
 end
 
 e2function vector rgb2hsl(r, g, b)
 	local h,s,l = Convert_rgb2hsl(RGBClamp(r, g, b))
-	return { floor(h * 360), s, l }
+	return Vector(floor(h * 360), s, l)
 end
 
 --- DIGI
@@ -270,6 +248,7 @@ converters[3] = function(r, g, b)
 end
 
 --- Converts an RGB vector <rgb> to a number in digital screen format. <mode> Specifies a mode, either 0, 2 or 3, corresponding to Digital Screen color modes.
+[nodiscard]
 e2function number rgb2digi(vector rgb, mode)
 	local conv = converters[mode]
 	if not conv then return self:throw("Mode " .. mode .. " does not exist!", 0) end
@@ -277,6 +256,7 @@ e2function number rgb2digi(vector rgb, mode)
 end
 
 --- Converts the RGB color (<r>,<g>,<b>) to a number in digital screen format. <mode> Specifies a mode, either 0, 2 or 3, corresponding to Digital Screen color modes.
+[nodiscard]
 e2function number rgb2digi(r, g, b, mode)
 	local conv = converters[mode]
 	if not conv then return self:throw("Mode " .. mode .. " does not exist!", 0) end

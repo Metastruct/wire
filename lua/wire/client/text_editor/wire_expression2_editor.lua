@@ -98,6 +98,7 @@ local colors = {
 	["operator"] = Color(224, 224, 224), -- white
 	["comment"] = Color(128, 128, 128), -- grey
 	["ppcommand"] = Color(240, 96, 240), -- purple
+	["ppcommandargs"] = Color(128, 128, 128), -- same as comment
 	["typename"] = Color(240, 160, 96), -- orange
 	["constant"] = Color(240, 160, 240), -- pink
 	["userfunction"] = Color(102, 122, 102), -- dark grayish-green
@@ -932,11 +933,12 @@ function Editor:InitComponents()
 end
 
 -- code1 contains the code that is not to be marked
-local code1 = "@name \n@inputs \n@outputs \n@persist \n@trigger \n\n"
+local code1 = "@name \n@inputs \n@outputs \n@persist \n@trigger \n@strict\n\n"
 -- code2 contains the code that is to be marked, so it can simply be overwritten or deleted.
 local code2 = [[#[
     Documentation and examples are available at:
     https://github.com/wiremod/wire/wiki/Expression-2
+    ^ Read what @strict and other directives do here ^
 
     Discord is available at https://discord.gg/H8UKY3Y
     Reddit is available at https://www.reddit.com/r/wiremod
@@ -1283,7 +1285,24 @@ function Editor:InitControlPanel(frame)
 	local ConcmdWhitelist = vgui.Create("DTextEntry")
 	dlist:AddItem(ConcmdWhitelist)
 	ConcmdWhitelist:SetConVar("wire_expression2_concmd_whitelist")
-	ConcmdWhitelist:SetToolTip("Separate the commands with commas.")
+	ConcmdWhitelist:SetTooltip("Separate the commands with commas.")
+
+	local Convar = vgui.Create("DCheckBoxLabel")
+	dlist:AddItem(Convar)
+	Convar:SetConVar("wire_expression2_convar")
+	Convar:SetText("convar")
+	Convar:SizeToContents()
+	Convar:SetTooltip("Allow/disallow the E2 from getting convar values from your player.")
+
+	label = vgui.Create("DLabel")
+	dlist:AddItem(label)
+	label:SetText("Convar whitelist")
+	label:SizeToContents()
+
+	local ConvarWhitelist = vgui.Create("DTextEntry")
+	dlist:AddItem(ConvarWhitelist)
+	ConvarWhitelist:SetConVar("wire_expression2_convar_whitelist")
+	ConvarWhitelist:SetTooltip("Separate the convars with commas.")
 
 	label = vgui.Create("DLabel")
 	dlist:AddItem(label)
@@ -1369,7 +1388,7 @@ Text here]# ]]
 		local E2s = ents.FindByClass("gmod_wire_expression2")
 		dlist2:Clear()
 		local size = 0
-		for _, v in pairs(E2s) do
+		for _, v in ipairs(E2s) do
 			local ply = v:GetNWEntity("player", NULL)
 			if IsValid(ply) and ply == LocalPlayer() or showall then
 				local nick
@@ -1394,9 +1413,16 @@ Text here]# ]]
 				local label = vgui.Create("DLabel", panel)
 				local idx = v:EntIndex()
 
-				local str = string.format("Name: %s\nEntity ID: '%d'\nOwner: %s",name,idx,nick)
+				local ownerStr
+				if CPPI and v:CPPIGetOwner():GetName() ~= nick then
+					ownerStr = string.format("Owner: %s | Code Author: %s", v:CPPIGetOwner():GetName(), nick)
+				else
+					ownerStr = "Owner: " .. nick
+				end
+
+				local str = string.format("Name: %s\nEntity ID: '%d'\n%s", name, idx, ownerStr)
 				if LocalPlayer():IsAdmin() then
-					str = string.format("Name: %s\nEntity ID: '%d'\n%i ops, %i%% %s\ncpu time: %ius\nOwner: %s",name,idx,0,0,"",0,nick)
+					str = string.format("Name: %s\nEntity ID: '%d'\n%i ops, %i%% %s\ncpu time: %ius\n%s", name, idx, 0, 0, "", 0, ownerStr)
 				end
 
 				label:SetText(str)
@@ -1427,7 +1453,13 @@ Text here]# ]]
 
 							local hardtext = (prfcount / e2_hardquota > 0.33) and "(+" .. tostring(math.Round(prfcount / e2_hardquota * 100)) .. "%)" or ""
 
-							label:SetText(string.format("Name: %s\nEntity ID: '%d'\n%i ops, %i%% %s\ncpu time: %ius\nOwner: %s",name,idx,prfbench,prfbench / e2_softquota * 100,hardtext,timebench*1000000,nick))
+							label:SetText(string.format(
+								"Name: %s\nEntity ID: '%d'\n%i ops, %i%% %s\ncpu time: %ius\n%s",
+								name, idx,
+								prfbench, prfbench / e2_softquota * 100, hardtext,
+								timebench * 1000000,
+								ownerStr
+							))
 						end
 					end
 				end
@@ -1594,11 +1626,27 @@ end
 
 function Editor:Validate(gotoerror)
 	if self.EditorType == "E2" then
-		local errors = wire_expression2_validate(self:GetCode())
+		local errors, _, warnings = wire_expression2_validate(self:GetCode())
 		if not errors then
-			self.C.Val:SetBGColor(0, 110, 20, 255)
-			self.C.Val:SetText("   Validation successful")
-			return true
+			if warnings then
+				self.C.Val:SetBGColor(150, 150, 0, 255)
+
+				local nwarnings = #warnings
+				local warning = table.remove(warnings, 1)
+
+				if gotoerror then
+					self.C.Val:SetText("   Warning (1/" .. nwarnings .. "): " .. warning.message)
+					self:GetCurrentEditor():SetCaret { warning.line, warning.char  }
+				else
+					self.C.Val:SetText("   Validated with " .. nwarnings .. " warning(s).")
+				end
+
+				return true
+			else
+				self.C.Val:SetBGColor(0, 110, 20, 255)
+				self.C.Val:SetText("   Validation successful")
+				return true
+			end
 		end
 		if gotoerror then
 			local row, col = errors:match("at line ([0-9]+), char ([0-9]+)$")
@@ -1751,6 +1799,7 @@ function Editor:SaveFile(Line, close, SaveAs)
 		self:Close()
 		return
 	end
+	
 	if not Line or SaveAs or Line == self.Location .. "/" .. ".txt" then
 		local str
 		if self.C.Browser.File then
@@ -1778,10 +1827,29 @@ function Editor:SaveFile(Line, close, SaveAs)
 		Derma_StringRequestNoBlur("Save to New File", "", (str ~= nil and str .. "/" or "") .. self.savefilefn,
 			function(strTextOut)
 				strTextOut = string.gsub(strTextOut, ".", invalid_filename_chars)
-				self:SaveFile(self.Location .. "/" .. strTextOut .. ".txt", close)
+				local save_location = self.Location .. "/" .. strTextOut .. ".txt"
+				if file.Exists(save_location, "DATA") then
+					Derma_QueryNoBlur("The file '" .. strTextOut .. "' already exists. Do you want to overwrite it?", "File already exists", 
+					"Yes", function() self:SaveFile(save_location, close) end,
+					"No", function() end)
+				else
+					self:SaveFile(save_location, close)
+				end
+
 				self:UpdateActiveTabTitle()
 			end)
 		return
+	end
+
+	if string.GetFileFromFilename(Line) == ".txt" then
+		surface.PlaySound("buttons/button10.wav")
+		GAMEMODE:AddNotify("Failed to save file without filename!", NOTIFY_ERROR, 7)
+		return
+	end
+
+	local path = string.GetPathFromFilename(Line)
+	if not file.IsDir(path, "DATA") then
+		file.CreateDir(path)
 	end
 
 	file.Write(Line, self:GetCode())
