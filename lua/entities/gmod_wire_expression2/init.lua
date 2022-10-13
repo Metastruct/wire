@@ -603,6 +603,7 @@ hook.Add("PlayerAuthed", "Wire_Expression2_Player_Authed", function(ply, sid, ui
 				ent:SetOverlayText(ent.name)
 			end
 		end
+	end
 	for _, ent in ipairs(ents.FindByClass("gmod_wire_hologram")) do
 		if ent.steamid == sid then
 			ent:SetPlayer(ply)
