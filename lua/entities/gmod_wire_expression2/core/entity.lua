@@ -588,6 +588,16 @@ e2function void entity:applyOffsetForce(vector force, vector position)
 	phys:ApplyForceOffset(force, position)
 end
 
+e2function void entity:applyTorqueCenter(vector angularImpulse)
+	if not validPhysics(this) then return self:throw("Invalid physics object!", nil) end
+	if not isOwner(self, this) then return self:throw("You do not own this entity!", nil) end
+
+	angularImpulse = clamp(angularImpulse)
+
+	local phys = this:GetPhysicsObject()
+	phys:ApplyTorqueCenter(angularImpulse)
+end
+
 e2function void entity:applyAngForce(angle angForce)
 	if not validPhysics(this) then return self:throw("Invalid physics object!", nil) end
 	if not isOwner(self, this) then return self:throw("You do not own this entity!", nil) end
