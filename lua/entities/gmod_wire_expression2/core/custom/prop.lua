@@ -15,15 +15,15 @@ local TimeStamp = 0
 local playerMeta = FindMetaTable("Player")
 
 local function TempReset()
- if (CurTime()>= TimeStamp) then
-	E2tempSpawnedProps = 0
-	TimeStamp = CurTime()+1
- end
+	if CurTime() >= TimeStamp then
+		E2tempSpawnedProps = 0
+		TimeStamp = CurTime() + 1
+	end
 end
 hook.Add("Think","TempReset",TempReset)
 
 function PropCore.WithinPropcoreLimits()
-	return (sbox_E2_maxProps:GetInt() <= 0 or E2totalspawnedprops<sbox_E2_maxProps:GetInt()) and E2tempSpawnedProps < sbox_E2_maxPropsPerSecond:GetInt()
+	return (sbox_E2_maxProps:GetInt() <= 0 or E2totalspawnedprops < sbox_E2_maxProps:GetInt()) and E2tempSpawnedProps < sbox_E2_maxPropsPerSecond:GetInt()
 end
 
 function PropCore.ValidSpawn(ply, model, isVehicle)
@@ -46,16 +46,16 @@ function PropCore.ValidSpawn(ply, model, isVehicle)
 end
 
 local canHaveInvalidPhysics = {
-	delete=true, parent=true, deparent=true, solid=true,
-	shadow=true, draw=true, use=true, pos=true, ang=true,
-	manipulate=true
+	delete = true, parent = true, deparent = true, solid = true,
+	shadow = true, draw = true, use = true, pos = true, ang = true,
+	manipulate = true
 }
 function PropCore.ValidAction(self, entity, cmd)
-	if(cmd=="spawn" or cmd=="Tdelete") then return true end
-	if(!IsValid(entity)) then return self:throw("Invalid entity!", false) end
-	if(!canHaveInvalidPhysics[cmd] and !validPhysics(entity)) then return self:throw("Invalid physics object!", false) end
-	if(!isOwner(self, entity)) then return self:throw("You do not own this entity!", false) end
-	if(!hook.Run("CanTool", self.player, WireLib.dummytrace(ent)) then return self:throw("You can not toolgun this entity!", false) end
+	if cmd == "spawn" or cmd == "Tdelete" then return true end
+	if not IsValid(entity) then return self:throw("Invalid entity!", false) end
+	if not canHaveInvalidPhysics[cmd] and not validPhysics(entity) then return self:throw("Invalid physics object!", false) end
+	if not isOwner(self, entity) then return self:throw("You do not own this entity!", false) end
+	if not hook.Run("CanTool", self.player, WireLib.dummytrace(ent)) then return self:throw("You can not toolgun this entity!", false) end
 	if entity:IsPlayer() then return self:throw("You cannot modify players", false) end
 
 	-- make sure we can only perform the same action on this prop once per tick
@@ -68,7 +68,7 @@ function PropCore.ValidAction(self, entity, cmd)
 	entity.e2_propcore_last_action[cmd] = CurTime()
 
 	local ply = self.player
-	return sbox_E2_PropCore:GetInt()==2 or (sbox_E2_PropCore:GetInt()==1 and ply:IsAdmin())
+	return sbox_E2_PropCore:GetInt() == 2 or (sbox_E2_PropCore:GetInt() == 1 and ply:IsAdmin())
 end
 
 local function MakePropNoEffect(...)
