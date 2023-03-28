@@ -55,7 +55,7 @@ function PropCore.ValidAction(self, entity, cmd)
 	if not IsValid(entity) then return self:throw("Invalid entity!", false) end
 	if not canHaveInvalidPhysics[cmd] and not validPhysics(entity) then return self:throw("Invalid physics object!", false) end
 	if not isOwner(self, entity) then return self:throw("You do not own this entity!", false) end
-	if not hook.Run("CanTool", self.player, WireLib.dummytrace(ent)) then return self:throw("You can not toolgun this entity!", false) end
+	if not hook.Run("CanTool", self.player, WireLib.dummytrace(entity)) then return self:throw("You can not toolgun this entity!", false) end
 	if entity:IsPlayer() then return self:throw("You cannot modify players", false) end
 
 	-- make sure we can only perform the same action on this prop once per tick
