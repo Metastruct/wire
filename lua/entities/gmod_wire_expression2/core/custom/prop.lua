@@ -64,7 +64,7 @@ function PropCore.ValidAction(self, entity, cmd, bone)
 	if cmd == "spawn" or cmd == "Tdelete" then return true end
 	if not IsValid(entity) then return self:throw("Invalid entity!", false) end
 	if not isOwner(self, entity) then return self:throw("You do not own this entity!", false) end
-	if not hook.Run("CanTool", self.player, WireLib.dummytrace(entity)) then return self:throw("You can not toolgun this entity!", false) end
+	if not hook.Run("CanTool", self.player, WireLib.dummytrace(entity),cmd and ("propcore:"..cmd) or "propcore") then return self:throw("You can not toolgun this entity!", false) end
 	if entity:IsPlayer() then return self:throw("You cannot modify players", false) end
 	
 	-- For cases when we'd only want to check an entity
