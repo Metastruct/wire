@@ -368,7 +368,7 @@ if SERVER then
 		if not wantedfiles[ply] then wantedfiles[ply] = {} end
 		table.insert(wantedfiles[ply], net.ReadData(net.ReadUInt(32)))
 		if numpackets <= #wantedfiles[ply] then
-			local ok, ret = pcall(WireLib.von.deserialize, E2Lib.decode(table.concat(wantedfiles[ply])))
+			local ok, ret = pcall(WireLib.von.deserialize, table.concat(wantedfiles[ply]))
 			wantedfiles[ply] = nil
 			if not ok then
 				WireLib.AddNotify(ply, "Expression 2 download failed! Error message:\n" .. ret, NOTIFY_ERROR, 7, NOTIFYSOUND_DRIP3)
@@ -412,7 +412,7 @@ if SERVER then
 		if not uploads[ply] then uploads[ply] = {} end
 		uploads[ply][#uploads[ply]+1] = net.ReadData(net.ReadUInt(32))
 		if numpackets <= #uploads[ply] then
-			local datastr = E2Lib.decode(table.concat(uploads[ply]))
+			local datastr = table.concat(uploads[ply])
 			uploads[ply] = nil
 			local ok, ret = pcall(WireLib.von.deserialize, datastr)
 
@@ -720,9 +720,9 @@ elseif CLIENT then
 		local err, includes, warnings
 
 		if e2_function_data_received then
-			err, includes, warnings = wire_expression2_validate(code)
-			if err then
-				WireLib.AddNotify(err, NOTIFY_ERROR, 7, NOTIFYSOUND_ERROR1)
+			err, includes, warnings = E2Lib.Validate(code)
+			if err and err[1] then
+				WireLib.AddNotify(err[1].message, NOTIFY_ERROR, 7, NOTIFYSOUND_ERROR1)
 				return
 			end
 		else
@@ -739,9 +739,9 @@ elseif CLIENT then
 				newincludes[k] = v
 			end
 
-			datastr = E2Lib.encode(WireLib.von.serialize({ code, newincludes, filepath }))
+			datastr = WireLib.von.serialize({ code, newincludes, filepath })
 		else
-			datastr = E2Lib.encode(WireLib.von.serialize({ code, {}, filepath }))
+			datastr = WireLib.von.serialize({ code, {}, filepath })
 		end
 
 		queue[#queue+1] = {
@@ -927,7 +927,7 @@ elseif CLIENT then
 			for k, v in pairs(selectedfiles) do haschoice = true break end
 			if not haschoice then pnl:Close() return end
 
-			local datastr = E2Lib.encode(WireLib.von.serialize(selectedfiles))
+			local datastr = WireLib.von.serialize(selectedfiles)
 			local numpackets = math.ceil(#datastr / 64000)
 			for i = 1, #datastr, 64000 do
 				net.Start("wire_expression2_download_wantedfiles")

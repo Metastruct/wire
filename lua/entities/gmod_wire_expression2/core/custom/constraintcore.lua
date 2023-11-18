@@ -91,11 +91,17 @@ local countLookup = {
 
 
 local function checkEnts(self, ent1, ent2)
-	if not IsValid(ent1) and not ent1:IsWorld() then return self:throw("Invalid entity!", false) end
-	if not IsValid(ent2) and not ent2:IsWorld() then return self:throw("Invalid target entity!", false) end
+	if not ent1 or not ent2 then return self:throw("Invalid entity!", false) end
 
-	if not isOwner(self, ent1) then return self:throw("You are not the owner of the entity!", false) end
-	if not isOwner(self, ent2) then return self:throw("You are not the owner of the target entity!", false) end
+	if not ent1:IsWorld() then
+		if not ent1:IsValid() then return self:throw("Invalid entity!", false) end
+		if not isOwner(self, ent1) then return self:throw("You are not the owner of the entity!", false) end
+	end
+
+	if not ent2:IsWorld() then
+		if not ent2:IsValid() then return self:throw("Invalid target entity!", false) end
+		if not isOwner(self, ent2) then return self:throw("You are not the owner of the target entity!", false) end
+	end
 
 	if ent1:IsPlayer() or ent2:IsPlayer() then return self:throw("Cannot constrain players!", false) end
 	return true
@@ -361,14 +367,14 @@ local function createHydraulic(self, index, ent1, ent2, v1, v2, width, bone1, bo
 
 	local existing = constraints[index]
 	if IsValid( existing ) then existing:Remove() end
-	
+
 	if color ~= nil then
 		color = Color(color[1], color[2], color[3])
 	end
 	if not constant or not damping then
 		constant, damping = CalcElasticConsts( getBone(ent1,bone1), getBone(ent2,bone2), ent1, ent2 )
 	end
-	
+
 	local cons, rope = constraint.Elastic( ent1, ent2, bone1 or 0, bone2 or 0, v1, v2, constant, damping, rdamping or 0, mat ~= "" and mat or "cable/cable2", width or 1, stretch ~= 0, color )
 	if not verifyConstraint( self, cons ) then return end
 
@@ -450,7 +456,7 @@ local function createRope(self, index, ent1, ent2, v1, v2, bone1, bone2, addleng
 	if color then
 		color = Color(color[1], color[2], color[3])
 	end
-	
+
 	local cons, rope = constraint.Rope( ent1, ent2, bone1 or 0, bone2 or 0, v1, v2, length, addlength or 0, 0, width or 1, mat ~= "" and mat or "cable/rope", rigid ~= 0,  color )
 	if not verifyConstraint( self, cons ) then return end
 
@@ -574,11 +580,11 @@ local function createSlider(self, ent1, ent2, v1, v2, width, bone1, bone2, mat, 
 	if not checkEnts( self, ent1, ent2 ) then return end
 	if not checkCount( self, "Slider", ent1, ent2 ) then return end
 	if not checkEdicts( self ) then return end
-	
+
 	if color then
 		color = Color(color[1],color[2],color[3],255)
 	end
-	
+
 	local cons, rope = constraint.Slider( ent1, ent2, bone1 or 0, bone2 or 0, v1, v2, width or 1, mat ~= "" and mat or "cable/cable2", color )
 	if not verifyConstraint( self, cons ) then return end
 
@@ -626,7 +632,7 @@ end
 local function noCollideCreate(self, ent1, ent2, bone1, bone2)
 	if not checkEnts(self, ent1, ent2) then return end
 	if not checkCount(self, "NoCollide", ent1, ent2) then return end
-	
+
 	local cons = constraint.NoCollide(ent1, ent2, bone1 or 0, bone2 or 0)
 	if not verifyConstraint(self, cons) then return end
 
@@ -657,13 +663,6 @@ end
 [deprecated]
 e2function void noCollide(entity ent1, entity ent2)
 	noCollideCreate(self, ent1, ent2)
-end
-
-e2function void entity:noCollideAll(state)
-	if not IsValid(this) then return self:throw("Invalid entity!", nil) end
-	if not isOwner(self, this) then return self:throw("You do not own this prop!", nil) end
-
-	this:SetCollisionGroup(state == 0 and COLLISION_GROUP_NONE or COLLISION_GROUP_WORLD)
 end
 
 --- Nocollides <ent> to entities/players, just like Right Click of No-Collide Stool
