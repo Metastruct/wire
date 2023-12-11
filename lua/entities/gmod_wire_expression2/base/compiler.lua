@@ -10,6 +10,8 @@ local Token, TokenVariant = E2Lib.Tokenizer.Token, E2Lib.Tokenizer.Variant
 local Node, NodeVariant = E2Lib.Parser.Node, E2Lib.Parser.Variant
 local Operator = E2Lib.Operator
 
+local pairs, ipairs = pairs, ipairs
+
 local TickQuota = GetConVar("wire_expression2_quotatick"):GetInt()
 
 cvars.RemoveChangeCallback("wire_expression2_quotatick", "compiler_quota_check")
@@ -123,8 +125,9 @@ end
 
 ---@param message string
 ---@param trace Trace
-function Compiler:Error(message, trace)
-	error( Error.new(message, trace), 0)
+---@param quick_fix { replace: string, at: Trace }[]?
+function Compiler:Error(message, trace, quick_fix)
+	error( Error.new(message, trace, nil, quick_fix), 0)
 end
 
 ---@generic T
@@ -133,7 +136,7 @@ end
 ---@param trace Trace
 ---@return T
 function Compiler:Assert(v, message, trace)
-	if not v then error(Error.new(message, trace), 0) end
+	if not v then self:Error(message, trace) end
 	return v
 end
 
@@ -150,12 +153,13 @@ end
 
 ---@param message string
 ---@param trace Trace
-function Compiler:Warning(message, trace)
+---@param quick_fix { replace: string, at: Trace }[]?
+function Compiler:Warning(message, trace, quick_fix)
 	if self.include then
 		local tbl = self.warnings[self.include]
-		tbl[#tbl + 1] = Warning.new(message, trace)
+		tbl[#tbl + 1] = Warning.new(message, trace, quick_fix)
 	else
-		self.warnings[#self.warnings + 1] = Warning.new(message, trace)
+		self.warnings[#self.warnings + 1] = Warning.new(message, trace, quick_fix)
 	end
 end
 
@@ -227,11 +231,11 @@ local CompileVisitors = {
 					stmts[i], traces[i] = stmt, trace
 
 					if node:isExpr() and node.variant ~= NodeVariant.ExprDynCall and node.variant ~= NodeVariant.ExprCall and node.variant ~= NodeVariant.ExprMethodCall then
-						self:Warning("This expression has no effect", node.trace)
+						self:Warning("This expression has no effect", node.trace, { { replace = "", at = node.trace } })
 					end
 				end
 			else
-				self:Warning("Unreachable code detected", node.trace)
+				self:Warning("Unreachable code detected", node.trace, { { replace = "", at = node.trace } })
 				break
 			end
 		end
@@ -546,6 +550,7 @@ local CompileVisitors = {
 		end
 
 		local default = data[3] and self:Scope(function(scope)
+			scope.data.switch_case = true
 			local b = self:CompileStmt(data[3])
 			dead = dead and scope.data.dead == "ret"
 			return b
@@ -587,6 +592,7 @@ local CompileVisitors = {
 
 			if default then
 				default(state)
+				state.__break__ = false
 			end
 
 			::exit::
@@ -604,7 +610,7 @@ local CompileVisitors = {
 		if err_ty then
 			self:Assert(err_ty.value == "string", "Error type can only be string, for now", err_ty.trace)
 		else
-			self:Warning("You should explicitly annotate the error type as :string", err_var.trace)
+			self:Warning("You should explicitly annotate the error type as :string", err_var.trace, { { replace = err_var.value .. ":string", at = err_var.trace } })
 		end
 
 		self:Scope(function (scope)
@@ -661,7 +667,7 @@ local CompileVisitors = {
 					self:Error("Variadic parameter requires explicit type", param.name.trace)
 				else
 					param_types[i] = "n"
-					self:Warning("Use of implicit parameter type is deprecated (add :number)", param.name.trace)
+					self:Warning("Use of implicit parameter type is deprecated (add :number)", param.name.trace, { { replace = param.name.value .. ":number", at = param.name.trace } })
 				end
 
 				if param.name.value ~= "_" and existing[param.name.value] then
@@ -825,7 +831,11 @@ local CompileVisitors = {
 			end
 		end)
 
-		self:Assert(fn.ret == return_type, "Function " .. name.value .. " expects to return type (" .. (return_type or "void") .. ") but got type (" .. (fn.ret or "void") .. ")", trace)
+		if return_type then
+			self:Assert(fn.ret == return_type, "Function " .. name.value .. " expects to return type (" .. return_type .. ") but got type (" .. (fn.ret or "void") .. ")", trace)
+		else
+			return_type = fn.ret
+		end
 
 		local sig = name.value .. "(" .. (meta_type and (meta_type .. ":") or "") .. sig .. ")"
 		local fn = fn.op
@@ -968,6 +978,8 @@ local CompileVisitors = {
 
 				-- It can have indices, it already exists
 				if #indices > 0 then
+					existing.trace_if_unused = nil
+
 					local setter, id = table.remove(indices), existing.depth
 					stmts[i] = function(state)
 						return state.Scopes[id][var]
@@ -1605,9 +1617,13 @@ local CompileVisitors = {
 	---@param data { [1]: Token<string>, [2]: Node[] }
 	[NodeVariant.ExprCall] = function (self, trace, data, used_as_stmt)
 		local name, args, types = data[1], {}, {}
+
+		if name.value == "changed" and data[2][1].variant == NodeVariant.ExprIdent and self.inputs[3][data[2][1].data.value] then
+			self:Warning("Use ~ instead of changed() for inputs", trace, { { replace = "~" .. data[2][1].data.value, at = trace } })
+		end
+
 		for k, arg in ipairs(data[2]) do
 			args[k], types[k] = self:CompileExpr(arg)
-			self:Assert(types[k], "Cannot use void expression as call argument", arg.trace)
 		end
 
 		local arg_sig = table.concat(types)
@@ -1894,7 +1910,7 @@ local CompileVisitors = {
 		for i, param in ipairs(data[2]) do
 			local type = param.type and self:CheckType(param.type)
 			if not type then
-				self:Warning("Use of implicit parameter type is deprecated (add :number)", param.name.trace)
+				self:Warning("Use of implicit parameter type is deprecated", param.name.trace, { { replace = param.name.value .. ":number", at = param.name.trace } })
 				type = "n"
 			end
 			params[i] = { param.name.value, type }
@@ -2042,20 +2058,22 @@ function Compiler:GetFunction(name, types, method)
 	end
 end
 
----@param node Node
----@return RuntimeOperator
----@return string expr_type
-function Compiler:CompileExpr(node)
-	assert(node.trace, "Incomplete node: " .. tostring(node))
-	local op, ty = assert(CompileVisitors[node.variant], "Unimplemented Compile Step: " .. node:instr())(self, node.trace, node.data, false)
-	self:Assert(ty, "Cannot use void in expression position", node.trace)
+function Compiler:CompileExpr(node --[[@param node Node]]) ---@return RuntimeOperator, string
+	local op, ty = CompileVisitors[node.variant](self, node.trace, node.data, false) ---@cast op -nil # Expressions should never return nil function
+
+	if ty == nil then
+		if node.variant == NodeVariant.ExprDynCall then
+			self:Error("Cannot use void in expression position ( Did you mean Call()[type] ? )", node.trace)
+		else
+			self:Error("Cannot use void in expression position", node.trace)
+		end
+	end ---@cast ty -nil # LuaLS can't figure this out yet.
+
 	return op, ty
 end
 
----@return RuntimeOperator
-function Compiler:CompileStmt(node)
-	assert(node.trace, "Incomplete node: " .. tostring(node))
-	return assert(CompileVisitors[node.variant], "Unimplemented Compile Step: " .. node:instr())(self, node.trace, node.data, true)
+function Compiler:CompileStmt(node --[[@param node Node]])
+	return CompileVisitors[node.variant](self, node.trace, node.data, true)
 end
 
 ---@param ast Node
