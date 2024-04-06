@@ -8,6 +8,9 @@ local function replace_match(a,b)
 	return string.match( string.Replace(a,"-","__"), string.Replace(b,"-","__") )
 end
 
+-- String used to check regex complexities
+local sample_string = string.rep(" ", 40)
+
 -- -- some generic filter criteria -- --
 
 local function filter_all() return true end
@@ -520,12 +523,14 @@ end
 
 --- Exclude entities with this model (or partial model name) from future finds
 e2function void findExcludeModel(string model)
+	if not pcall(WireLib.CheckRegex, sample_string, model) then return self:throw("Search string too complex!", nil) end	
 	self.data.find.bl_model[string.lower(model)] = true
 	invalidate_filters(self)
 end
 
 --- Exclude entities with this class (or partial class name) from future finds
 e2function void findExcludeClass(string class)
+	if not pcall(WireLib.CheckRegex, sample_string, class) then return self:throw("Search string too complex!", nil) end
 	self.data.find.bl_class[string.lower(class)] = true
 	invalidate_filters(self)
 end
@@ -578,12 +583,14 @@ end
 
 --- Remove entities with this model (or partial model name) from the blacklist
 e2function void findAllowModel(string model)
+	if not pcall(WireLib.CheckRegex, sample_string, model) then return self:throw("Search string too complex!", nil) end
 	self.data.find.bl_model[string.lower(model)] = nil
 	invalidate_filters(self)
 end
 
 --- Remove entities with this class (or partial class name) from the blacklist
 e2function void findAllowClass(string class)
+	if not pcall(WireLib.CheckRegex, sample_string, class) then return self:throw("Search string too complex!", nil) end
 	self.data.find.bl_class[string.lower(class)] = nil
 	invalidate_filters(self)
 end
@@ -636,12 +643,14 @@ end
 
 --- Include entities with this model (or partial model name) in future finds, and remove others not in the whitelist
 e2function void findIncludeModel(string model)
+	if not pcall(WireLib.CheckRegex, sample_string, model) then return self:throw("Search string too complex!", nil) end
 	self.data.find.wl_model[string.lower(model)] = true
 	invalidate_filters(self)
 end
 
 --- Include entities with this class (or partial class name) in future finds, and remove others not in the whitelist
 e2function void findIncludeClass(string class)
+	if not pcall(WireLib.CheckRegex, sample_string, class) then return self:throw("Search string too complex!", nil) end
 	self.data.find.wl_class[string.lower(class)] = true
 	invalidate_filters(self)
 end
@@ -694,12 +703,14 @@ end
 
 --- Remove entities with this model (or partial model name) from the whitelist
 e2function void findDisallowModel(string model)
+	if not pcall(WireLib.CheckRegex, sample_string, model) then return self:throw("Search string too complex!", nil) end
 	self.data.find.wl_model[string.lower(model)] = nil
 	invalidate_filters(self)
 end
 
 --- Remove entities with this class (or partial class name) from the whitelist
 e2function void findDisallowClass(string class)
+	if not pcall(WireLib.CheckRegex, sample_string, class) then return self:throw("Search string too complex!", nil) end
 	self.data.find.wl_class[string.lower(class)] = nil
 	invalidate_filters(self)
 end
@@ -869,6 +880,7 @@ end
 
 --- Filters the list of entities by removing all entities that are NOT of this class
 e2function number findClipToClass(string class)
+	if not pcall(WireLib.CheckRegex, sample_string, class) then return self:throw("Search string too complex!", 0) end
 	class = string.lower(class)
 	return applyClip(self, function(ent)
 		if !IsValid(ent) then return false end
@@ -878,6 +890,7 @@ end
 
 --- Filters the list of entities by removing all entities that are of this class
 e2function number findClipFromClass(string class)
+	if not pcall(WireLib.CheckRegex, sample_string, class) then return self:throw("Search string too complex!", 0) end
 	return applyClip(self, function(ent)
 		if !IsValid(ent) then return false end
 		return not replace_match(string.lower(ent:GetClass()), class)
@@ -886,6 +899,7 @@ end
 
 --- Filters the list of entities by removing all entities that do NOT have this model
 e2function number findClipToModel(string model)
+	if not pcall(WireLib.CheckRegex, sample_string, model) then return self:throw("Search string too complex!", 0) end
 	return applyClip(self, function(ent)
 		if !IsValid(ent) then return false end
 		return replace_match(string.lower(ent:GetModel() or ""), model)
@@ -894,6 +908,7 @@ end
 
 --- Filters the list of entities by removing all entities that do have this model
 e2function number findClipFromModel(string model)
+	if not pcall(WireLib.CheckRegex, sample_string, model) then return self:throw("Search string too complex!", 0) end
 	return applyClip(self, function(ent)
 		if !IsValid(ent) then return false end
 		return not replace_match(string.lower(ent:GetModel() or ""), model)
@@ -902,6 +917,7 @@ end
 
 --- Filters the list of entities by removing all entities that do NOT have this name
 e2function number findClipToName(string name)
+	if not pcall(WireLib.CheckRegex, sample_string, name) then return self:throw("Search string too complex!", 0) end
 	return applyClip(self, function(ent)
 		if !IsValid(ent) then return false end
 		return replace_match(string.lower(ent:GetName()), name)
@@ -910,6 +926,7 @@ end
 
 --- Filters the list of entities by removing all entities that do have this name
 e2function number findClipFromName(string name)
+	if not pcall(WireLib.CheckRegex, sample_string, name) then return self:throw("Search string too complex!", 0) end
 	return applyClip(self, function(ent)
 		if !IsValid(ent) then return false end
 		return not replace_match(string.lower(ent:GetName()), name)
