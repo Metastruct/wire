@@ -23,7 +23,8 @@ local Color = Color
 local isvector, isnumber, istable, isstring, isangle, IsEntity, IsColor = isvector, isnumber, istable, isstring, isangle, IsEntity, IsColor
 
 local HasPorts = WireLib.HasPorts -- Very important for checks!
-
+local entIsValid = FindMetaTable("Entity").IsValid
+local entGetTable = FindMetaTable("Entity").GetTable
 
 function WireLib.PortComparator(a,b)
 	return a.Num < b.Num
@@ -52,9 +53,14 @@ local CurTime = CurTime
 
 -- helper function that pcalls an input
 function WireLib.TriggerInput(ent, name, value, ...)
-	if (not IsValid(ent) or not HasPorts(ent) or not ent.Inputs) then return end
+	if not entIsValid(ent) or not HasPorts(ent) then return end
 
-	local input = ent.Inputs[name]
+	local entTbl = entGetTable(ent)
+	local inputs = entTbl.Inputs
+
+	if not inputs then return end
+
+	local input = inputs[name]
 	if not input then return end
 
 	local ty = WireLib.DT[input.Type]
@@ -64,7 +70,8 @@ function WireLib.TriggerInput(ent, name, value, ...)
 	end
 
 	input.Value = value
-	if (not ent.TriggerInput) then return end
+	local triggerInput = entTbl.TriggerInput
+	if not triggerInput then return end
 
 	-- Limit inputs the same way outputs are limited.
 	-- This is in case a wire input would somehow trigger itself and stack overflow.
@@ -72,20 +79,21 @@ function WireLib.TriggerInput(ent, name, value, ...)
 	local now = CurTime()
 	if input.TriggerTime ~= now then
 		input.TriggerTime = now
-		input.TriggerLimit = 4
+		input.TriggerLimit = 8
 	elseif input.TriggerLimit <= 0 then
 		return
 	else
 		input.TriggerLimit = input.TriggerLimit - 1
 	end
 
-	local ok, ret = xpcall(ent.TriggerInput, debug.traceback, ent, name, value, ...)
+	local ok, ret = xpcall(triggerInput, debug.traceback, ent, name, value, ...)
 	if not ok then
 		local ply = WireLib.GetOwner(ent)
-		local owner_msg = IsValid(ply) and (" by %s"):format(tostring(ply)) or ""
-		local message = ("Wire error (%s%s):\n%s\n"):format(tostring(ent),owner_msg, ret)
+		local validPly = IsValid(ply)
+		local owner_msg = validPly and (" by %s"):format(tostring(ply)) or ""
+		local message = ("Wire error (%s%s):\n%s\n"):format(tostring(ent), owner_msg, ret)
 		WireLib.ErrorNoHalt(message)
-		if IsValid(ply) then WireLib.ClientError(message, ply) end
+		if validPly then WireLib.ClientError(message, ply) end
 	end
 end
 
@@ -620,11 +628,13 @@ local function Wire_Link(dst, dstid, src, srcid, path)
 end
 
 function WireLib.TriggerOutput(ent, oname, value, iter)
-	if not IsValid(ent) then return end
+	if not entIsValid(ent) then return end
 	if not HasPorts(ent) then return end
-	if (not ent.Outputs) then return end
 
-	local output = ent.Outputs[oname]
+	local entTbl = entGetTable(ent)
+	if not entTbl.Outputs then return end
+
+	local output = entTbl.Outputs[oname]
 	if not output then return end
 
 	local ty = WireLib.DT[output.Type]
@@ -637,7 +647,7 @@ function WireLib.TriggerOutput(ent, oname, value, iter)
 		local timeOfFrame = CurTime()
 		if timeOfFrame ~= output.TriggerTime then
 			-- Reset the TriggerLimit every frame
-			output.TriggerLimit = 4
+			output.TriggerLimit = 8
 			output.TriggerTime = timeOfFrame
 		elseif output.TriggerLimit <= 0 then
 			return
@@ -645,11 +655,13 @@ function WireLib.TriggerOutput(ent, oname, value, iter)
 		output.TriggerLimit = output.TriggerLimit - 1
 
 		output.Value = value
+		local outputConnected = output.Connected
 
-		if (iter) then
-			for _,dst in ipairs(output.Connected) do
-				if (IsValid(dst.Entity)) then
-					iter:Add(dst.Entity, dst.Name, value)
+		if iter then
+			for _, dst in ipairs(outputConnected) do
+				local dstEnt = dst.Entity
+				if entIsValid(dstEnt) then
+					iter:Add(dstEnt, dst.Name, value)
 				end
 			end
 			return
@@ -657,14 +669,14 @@ function WireLib.TriggerOutput(ent, oname, value, iter)
 
 		iter = WireLib.CreateOutputIterator()
 
-		for _,dst in ipairs(output.Connected) do
-			if (IsValid(dst.Entity)) then
-				WireLib.TriggerInput(dst.Entity, dst.Name, value, iter)
+		for _, dst in ipairs(outputConnected) do
+			local dstEnt = dst.Entity
+			if entIsValid(dstEnt) then
+				WireLib.TriggerInput(dstEnt, dst.Name, value, iter)
 			end
 		end
 
 		iter:Process()
-
 	end
 end
 
@@ -1202,17 +1214,19 @@ function WireLib.CalcElasticConsts(Ent1, Ent2)
 end
 
 
--- Returns a string like "Git f3a4ac3" or "SVN 2703" or "Workshop" or "Extracted"
--- The partial git hash can be plugged into https://github.com/wiremod/wire/commit/f3a4ac3 to show the actual commit
-local cachedversion
+local version
+local version_string
+--- Returns the current Wiremod version
+---@return number version The version as a number formatted YYMMDD
+---@return string version_string A verbose version for printing
 function WireLib.GetVersion()
 	-- If we've already found our version just return that again
-	if cachedversion then return cachedversion end
+	if version then return version, version_string end
 
-	-- Find what our legacy folder is called
 	local wirefolder = "addons/wire"
+	-- Brute force find the wire folder if it's not named wire
 	if not file.Exists(wirefolder, "GAME") then
-		for k, folder in pairs(({file.Find("addons/*", "GAME")})[2]) do
+		for _, folder in pairs(({file.Find("addons/*", "GAME")})[2]) do
 			if folder:find("wire") and not folder:find("extra") then
 				wirefolder = "addons/"..folder
 				break
@@ -1221,28 +1235,49 @@ function WireLib.GetVersion()
 	end
 
 	if file.Exists(wirefolder, "GAME") then
-		if file.Exists(wirefolder.."/.git", "GAME") then
-			cachedversion = "Git "..(file.Read(wirefolder.."/.git/refs/heads/master", "GAME") or "Unknown"):sub(1,7)
-		elseif file.Exists(wirefolder.."/.svn", "GAME") then
-			-- Note: This method will likely only detect TortoiseSVN installs
-			local wcdb = file.Read(wirefolder.."/.svn/wc.db", "GAME") or ""
-			local start = wcdb:find("/wiremod/wire/!svn/ver/%d+/branches%)")
-			if start then
-				cachedversion = "SVN "..wcdb:sub(start+23, start+26)
-			else
-				cachedversion = "SVN Unknown"
+		wirefolder = wirefolder .. "/.git"
+		if file.Exists(wirefolder, "GAME") then
+			-- Find where git HEAD is
+			local head = file.Open(wirefolder .. "/HEAD", "r", "GAME")
+			if head then
+				local ref
+				while not head:EndOfFile() do
+					local line = head:ReadLine()
+					if line:StartsWith("ref: ") then
+						ref = line:sub(6, -2)
+					end
+				end
+				head:Close()
+				if ref then
+					-- Generate version string
+					local path = wirefolder .. "/" .. ref
+					local name = ref:StartsWith("refs/heads/") and ref:sub(12) or ref
+					local time = -1
+					local time_str = "Unknown"
+					local hash = ""
+					if file.Exists(path, "GAME") then
+						local t = file.Time(path, "GAME")
+						time =  tonumber(os.date("%y%m%d", t))
+						time_str = os.date("%Y.%m.%d", t)
+						hash = file.Read(path, "GAME"):sub(1, 7)
+					end
+
+					version_string = string.format("Local %s (%s:%s)", time_str, name, hash)
+					version = time
+				end
 			end
-		else
-			cachedversion = "Extracted"
 		end
 	end
 
-	if not cachedversion then cachedversion = "Unknown" end
+	if not version then
+		version = -1
+		version_string = "Unknown"
+	end
 
-	return cachedversion
+	return version, version_string
 end
-concommand.Add("wireversion", function(ply,cmd,args)
-	local text = "Wiremod's version: '"..WireLib.GetVersion().."'"
+concommand.Add("wireversion", function(ply)
+	local text = "Wiremod version: " .. select(2, WireLib.GetVersion())
 	if IsValid(ply) then
 		ply:ChatPrint(text)
 	else

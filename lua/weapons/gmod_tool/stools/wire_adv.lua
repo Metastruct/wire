@@ -620,6 +620,11 @@ elseif CLIENT then
 		end
 
 		if self:GetStage() == 2 then
+			if not IsValid( self.CurrentEntity ) then
+				self:SetStage(0)
+				return
+			end
+
 			local _, outputs = self:GetPorts( self.CurrentEntity )
 
 			if alt then -- Auto wiring
@@ -966,7 +971,7 @@ elseif CLIENT then
 			end
 			return true
 		elseif name == "Selected" and self:GetStage() == 2 then
-			local inputs, outputs = self:GetPorts( ent )
+			local _, outputs = self:GetPorts( ent )
 			if not isTableEmpty(outputs) then return false end
 			if self:GetOwner():KeyDown( IN_WALK ) then -- Gray out the ones that won't be able to be wired to any input
 				for i=1,#outputs do
@@ -1267,7 +1272,7 @@ elseif CLIENT then
 
 					traceData.collisiongroup = LAST_SHARED_COLLISION_GROUP
 					local traceResult = util.TraceLine(traceData)
-					if WireLib.HasPorts(traceResult.Entity) then
+					if IsValid(traceResult.Entity) and WireLib.HasPorts(traceResult.Entity) then
 						self:UpdateTraceForSurface(traceResult, traceResult.Entity:GetParent())
 					end
 					render.AddBeam(traceResult.HitPos, width, scroll+(traceResult.HitPos-start):Length()/10, Color(100,100,100,255))
