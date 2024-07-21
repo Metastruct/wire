@@ -883,7 +883,8 @@ e2function void bone:boneManipulate(vector pos, angle rot, isFrozen, gravity, co
 end
 
 e2function void bone:boneFreeze(isFrozen)
-	if not boneVerify(self, this) then return end
+	local ent, index = boneVerify(self, this)
+	if not ValidAction(self, ent, "freeze", index) then return end
 	this:EnableMotion( isFrozen == 0 )
 	this:Wake()
 end
@@ -891,24 +892,28 @@ end
 __e2setcost(30)
 
 e2function void bone:setCollisions(enable)
-	if not boneVerify(self, this) then return end
+	local ent, index = boneVerify(self, this)
+	if not ValidAction(self, ent, "collisions", index) then return end
 	this:EnableCollisions(enable ~= 0)
 	this:Wake()
 end
 
 e2function void bone:setDrag( number drag )
-	if not boneVerify(self, this) then return end
+	local ent, index = boneVerify(self, this)
+	if not ValidAction(self, ent, "drag", index) then return end
 	this:EnableDrag( drag ~= 0 )
 end
 
 e2function void bone:setInertia( vector inertia )
-	if not boneVerify(self, this) then return end
+	local ent, index = boneVerify(self, this)
+	if not ValidAction(self, ent, "inertia", index) then return end
 	if inertia:IsZero() then return end
 	this:SetInertia(inertia)
 end
 
 e2function void bone:setBuoyancy(number buoyancy)
-	if not boneVerify(self, this) then return end
+	local ent, index = boneVerify(self, this)
+	if not ValidAction(self, ent, "buoyancy", index) then return end
 	this:SetBuoyancyRatio( math.Clamp(buoyancy, 0, 1) )
 end
 
