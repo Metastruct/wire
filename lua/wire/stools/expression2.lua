@@ -360,7 +360,7 @@ if SERVER then
 
 		local ent_owner = toent:CPPIGetOwner()
 
-		if not prop_owner.AreFriends(ply, ent_owner) or prop_owner.HasPlySet(ent_owner , "hate_everyone") then
+		if ent_owner ~= ply and (not prop_owner.AreFriends(ply, ent_owner) or prop_owner.HasPlySet(ent_owner , "hate_everyone")) then
 			WireLib.AddNotify(ply, "Insufficient user permissions to access this chip.", NOTIFY_ERROR, 7, NOTIFYSOUND_DRIP3)
 			return
 		end
