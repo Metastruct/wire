@@ -243,7 +243,7 @@ end
 
 E2Lib.Lambda = Function
 
---- Call the function without doing any type checking.
+--- Call the function without doing any type checking or pcall.
 --- Only use this when you check self:Args() yourself to ensure you have the correct signature function.
 function Function:UnsafeCall(args)
 	return self.fn(args)
@@ -257,6 +257,32 @@ function Function:Call(args, types)
 	end
 end
 
+-- Use these if you're calling lambdas externally, the context(ctx) is used for passing errors to the chip.
+function Function:UnsafeExtCall(args, ctx)
+	local success,ret = pcall(self.fn,args)
+	if success then
+		return ret
+	else
+		local _,msg,trace = E2Lib.unpackException(ret)
+		ctx.entity:Error("Expression 2 (" .. ctx.entity.name .. "): Runtime Lambda error '" .. msg .. "' at line " .. trace.start_line .. ", char " .. trace.start_col, "error in script")
+	end
+end
+
+function Function:ExtCall(args, types, ctx)
+	if self.arg_sig == types then
+		local success,ret = pcall(self.fn,args)
+		if success then
+			return ret
+		else
+			local _,msg,trace = E2Lib.unpackException(ret)
+			ctx.entity:Error("Expression 2 (" .. ctx.entity.name .. "): Runtime Lambda error '" .. msg .. "' at line " .. trace.start_line .. ", char " .. trace.start_col, "error in script")
+		end
+	else
+		ctx.entity:Error("Expression 2 (" .. ctx.entity.name .. "): Internal Lambda error, incorrect arguments passed.")
+	end
+end
+
+
 function Function:Args()
 	return self.arg_sig
 end
@@ -265,7 +291,7 @@ function Function:Ret()
 	return self.ret
 end
 
---- If given the correct arguments, returns the inner untyped function you can call.
+--- If given the correct arguments, returns the inner untyped function you can then call with ENT:Execute(f).
 --- Otherwise, throws an error to the given E2 Context.
 ---@param arg_sig string
 ---@param ctx RuntimeContext
@@ -440,12 +466,17 @@ function E2Lib.isFriend(owner, player)
 	return owner == player
 end
 
-function E2Lib.isOwner(self, entity)
-	if game.SinglePlayer() then return true end
-	local owner = E2Lib.getOwner(self, entity)
-	if not IsValid(owner) then return false end
-
-	return E2Lib.isFriend(owner, self.player)
+if game.SinglePlayer() then
+	function E2Lib.isOwner(self, entity)
+		return true
+	end
+else
+	function E2Lib.isOwner(self, entity)
+		local owner = E2Lib.getOwner(self, entity)
+		if not IsValid(owner) then return false end
+	
+		return E2Lib.isFriend(owner, self.player)
+	end
 end
 
 local isOwner = E2Lib.isOwner

@@ -61,7 +61,7 @@ local ValidSpawn = PropCore.ValidSpawn
 local canHaveInvalidPhysics = {
 	delete=true, parent=true, deparent=true, solid=true,
 	shadow=true, draw=true, use=true, pos=true, ang=true,
-	manipulate=true
+	manipulate=true, noDupe=true
 }
 
 function PropCore.ValidAction(self, entity, cmd, bone)
@@ -227,7 +227,7 @@ function PropCore.CreateSent(self, class, pos, angles, freeze, data)
 
 	local isWhitelist = wire_expression2_propcore_sents_whitelist:GetBool()
 	if isWhitelist and not registered_sent and sent then
-		return self:throw("Spawning entity '" .. class .. "' is not allowed! wire_expression2_propcore_sents_whitelist is enabled", NULL)
+		return self:throw("Spawning entity '" .. class .. "' is not allowed! wire_expression2_propcore_sents_whitelist is enabled.", NULL)
 	elseif not registered_sent and not sent then
 		return self:throw("Sent class '" .. class .. "' is not registered nor in entity tab!", NULL)
 	end
@@ -244,15 +244,13 @@ function PropCore.CreateSent(self, class, pos, angles, freeze, data)
 		end
 
 		-- Not sure if we should check for invalid parameters, as it's not really a problem if the user provides more parameters than needed (they will be ignored), but the check
-		-- against pre/post factories injections is still required. If you want to validate that all parameters are valid, uncomment the following code instead.
+		-- against pre/post factories injections is still required.
 		-- ( Although I'm not sure that compiler would allow injection(I couldn't make it), some smart lads could still find a workaround, so it's better to be safe than sorry :) )
-		--for k, v in pairs(data) do
-			--if not sentParams[k] then return self:throw("Invalid parameter name '" .. tostring(k).."'", NULL) end
-		--end
-
-		-- And comment that instead to save cpu time.
-		if data._preFactory then return self:throw("Invalid parameter name '_preFactory'", NULL) end
-		if data._postFactory then return self:throw("Invalid parameter name '_postFactory'", NULL) end
+		-- ( On a second thought, having this check is a good thing, as misspelled parameters will be caught, and nerves will be saved :D )
+		for k, v in pairs(data) do
+			if not sentParams[k] then return self:throw("Invalid parameter name '" .. tostring(k).."'. You can use sentGetData(\""..class.."\") to get list of valid parameters.", NULL) end
+			if k=="_preFactory" or k=="_postFactory" then return self:throw("'"..k.."' is reserved parameter name. You can't assign value to it!", NULL) end
+		end
 
 		local entityData = {}
 
@@ -264,7 +262,7 @@ function PropCore.CreateSent(self, class, pos, angles, freeze, data)
 
 			if value~=nil then -- Attempting to set provided value (need to cast from E2 to Lua type).
 				local res = castE2ValueToLuaValue(org[1], value)
-				if res==nil then return self:throw("Incorrect parameter '".. param .. "' type during spawning '" .. class .. "'. Expected '" .. typeIDToString[org[1]] .. "'. Received '" .. string.lower(type(value)) .. "'", NULL) end
+				if res==nil then return self:throw("Incorrect parameter '".. param .. "' type during spawning '" .. class .. "'. Expected '" .. typeIDToString(org[1]) .. "'. Received '" .. string.lower(type(value)) .. "'", NULL) end
 
 				entityData[param] = res
 			elseif org[2]~=nil then -- Attempting to set default value if none provided.
@@ -389,6 +387,11 @@ function PropCore.CreateSent(self, class, pos, angles, freeze, data)
 	return entity
 end
 
+local function sentDataFormatDefaultVal( val )
+	if val == nil then return "<no default value>" end
+	return TypeID(val)==TYPE_BOOL and (val==true and "true (1)" or "false (0)") or tostring(val)
+end
+
 local CreateSent = PropCore.CreateSent
 
 --------------------------------------------------------------------------------
@@ -504,16 +507,17 @@ e2function table sentGetData(string class)
 	local res = E2Lib.newE2Table()
 
 	local sent = list.Get("wire_spawnable_ents_registry")[class]
-	if not sent then return res end
+	if not sent then self:throw("No class '"..class.."' found in sent registry", res) end
 
 	local size = 0
 	for key, tbl in pairs( sent ) do
+		if key=="_preFactory" or key=="_postFactory" then continue end
+
 		res.s[key] = E2Lib.newE2Table()
 		res.s[key].size = 2
-		res.s[key].n[1] = typeIDToString[tbl[1]]
-		res.s[key].n[2] = TypeID(tbl[2])==TYPE_BOOL and (tbl[2]==true and "1" or "0") or tostring(tbl[2])
-		res.s[key].ntypes[1] = "s"
-		res.s[key].ntypes[2] = "s"
+		res.s[key].s["type"] = typeIDToString(tbl[1])
+		res.s[key].s["default_value"] = sentDataFormatDefaultVal(tbl[2])
+		res.s[key].s["description"] = tbl[3] or "<no description>"
 		res.stypes[key] = "t"
 
 		size = size + 1
@@ -523,24 +527,38 @@ e2function table sentGetData(string class)
 	return res
 end
 
+__e2setcost(10)
+[nodiscard]
+e2function table sentGetData(string class, string key)
+	local sent = list.Get("wire_spawnable_ents_registry")[class]
+	if not sent then self:throw("No class '"..class.."' found in sent registry", "") end
+	if not sent[key] then self:throw("Class '"..class.."' does not have any value at key '"..key.."'", "") end
+	if key=="_preFactory" or key=="_postFactory" then self:throw("Prohibited key '"..key.."'", "") end
+
+	local res = E2Lib.newE2Table()
+	res.s["type"] = typeIDToString(sent[key][1])
+	res.s["default_value"] = sentDataFormatDefaultVal(sent[key][2])
+	res.s["description"] = sent[key][3] or "<no description>"
+	res.size = 3
+
+	return res
+end
+
 --------------------------------------------------------------------------------
 
-__e2setcost(20)
+__e2setcost(25)
 [nodiscard]
 e2function table sentGetDataTypes(string class)
 	local res = E2Lib.newE2Table()
 
 	local sent = list.Get("wire_spawnable_ents_registry")[class]
-	if not sent then return res end
+	if not sent then self:throw("No class '"..class.."' found in sent registry", res) end
 
 	local size = 0
 	for key, tbl in pairs( sent ) do
-		res.s[key] = E2Lib.newE2Table()
-		res.s[key].size = 1
-		res.s[key].n[1] = typeIDToString[tbl[1]]
-		res.s[key].ntypes[1] = "s"
-		res.stypes[key] = "t"
+		if key=="_preFactory" or key=="_postFactory" then continue end
 
+		res.s[key] = typeIDToString(tbl[1])
 		size = size + 1
 	end
 	res.size = size
@@ -548,29 +566,81 @@ e2function table sentGetDataTypes(string class)
 	return res
 end
 
+__e2setcost(5)
+[nodiscard]
+e2function string sentGetDataType(string class, string key)
+	local sent = list.Get("wire_spawnable_ents_registry")[class]
+	if not sent then self:throw("No class '"..class.."' found in sent registry", "") end
+	if not sent[key] then self:throw("Class '"..class.."' does not have any value at key '"..key.."'", "") end
+	if key=="_preFactory" or key=="_postFactory" then self:throw("Prohibited key '"..key.."'", "") end
+
+	return typeIDToString(sent[key][1])
+end
+
 --------------------------------------------------------------------------------
 
-__e2setcost(20)
+__e2setcost(25)
 [nodiscard]
 e2function table sentGetDataDefaultValues(string class)
 	local res = E2Lib.newE2Table()
 
 	local sent = list.Get("wire_spawnable_ents_registry")[class]
-	if not sent then return res end
+	if not sent then self:throw("No class '"..class.."' found in sent registry", res) end
 
 	local size = 0
 	for key, tbl in pairs( sent ) do
-		res.s[key] = E2Lib.newE2Table()
-		res.s[key].size = 1
-		res.s[key].n[2] = TypeID(tbl[2])==TYPE_BOOL and (tbl[2]==true and "1" or "0") or tostring(tbl[2])
-		res.s[key].ntypes[2] = "s"
-		res.stypes[key] = "t"
+		if key=="_preFactory" or key=="_postFactory" then continue end
 
+		res.s[key] = sentDataFormatDefaultVal(tbl[2])
 		size = size + 1
 	end
 	res.size = size
 
 	return res
+end
+
+__e2setcost(5)
+[nodiscard]
+e2function string sentGetDataDefaultValue(string class, string key)
+	local sent = list.Get("wire_spawnable_ents_registry")[class]
+	if not sent then self:throw("No class '"..class.."' found in sent registry", "") end
+	if not sent[key] then self:throw("Class '"..class.."' does not have any value at key '"..key.."'", "") end
+	if key=="_preFactory" or key=="_postFactory" then self:throw("Prohibited key '"..key.."'", "") end
+
+	return sentDataFormatDefaultVal(sent[key][2])
+end
+
+--------------------------------------------------------------------------------
+
+__e2setcost(25)
+[nodiscard]
+e2function table sentGetDataDescriptions(string class)
+	local res = E2Lib.newE2Table()
+
+	local sent = list.Get("wire_spawnable_ents_registry")[class]
+	if not sent then self:throw("No class '"..class.."' found in sent registry", res) end
+
+	local size = 0
+	for key, tbl in pairs( sent ) do
+		if key=="_preFactory" or key=="_postFactory" then continue end
+
+		res.s[key] = tbl[3] or "<no description>"
+		size = size + 1
+	end
+	res.size = size
+
+	return res
+end
+
+__e2setcost(5)
+[nodiscard]
+e2function string sentGetDataDescription(string class, string key)
+	local sent = list.Get("wire_spawnable_ents_registry")[class]
+	if not sent then self:throw("No class '"..class.."' found in sent registry", "") end
+	if not sent[key] then self:throw("Class '"..class.."' does not have any value at key '"..key.."'", "") end
+	if key=="_preFactory" or key=="_postFactory" then self:throw("Prohibited key '"..key.."'", "") end
+
+	return sent[key][3] or "<no description>"
 end
 
 --------------------------------------------------------------------------------
@@ -703,10 +773,39 @@ e2function void propDeleteAll()
 	self.data.spawnedProps = {}
 end
 
+--------------------------------------------------------------------------------
+local function canMarkDupeable(ent, ply)
+	if not duplicator.IsAllowed(ent:GetClass()) then return false end -- Entity is not dupeable by default.
+	if ent.markedNoDupeBy == ply:SteamID() then return true end -- Player already changed status. Thus can do this again.
+	return ent.DoNotDuplicate ~= true -- If false or nil -> can mark as dupeable.
+end
+
+__e2setcost(1)
+[nodiscard]
+e2function number entity:propIsDupeable()
+	return (this.DoNotDuplicate == true or not duplicator.IsAllowed(this:GetClass())) and 0 or 1
+end
+
+[nodiscard]
+e2function number entity:propCanSetDupeable()
+	local isOk, Val = pcall(ValidAction, self, this, "noDupe")
+	if not isOk then return 0 end
+
+	return canMarkDupeable(this, self.player) and 1 or 0
+end
+
+__e2setcost(2)
+e2function void entity:propNoDupe(number noDupe)
+	if not ValidAction(self, this, "noDupe") then return end
+	noDupe = noDupe ~= 0
+
+	if not canMarkDupeable(this, self.player) then return self:throw("Can't mark this entity as "..(noDupe and "un" or "").."dupeable!", nil) end
+
+	this.markedNoDupeBy = self.player:SteamID()
+	this.DoNotDuplicate = noDupe
+end
 
 __e2setcost(10)
-
---------------------------------------------------------------------------------
 e2function void entity:propManipulate(vector pos, angle rot, number freeze, number gravity, number notsolid)
 	if not ValidAction(self, this, "manipulate") then return end
 	PhysManipulate(this, pos, rot, freeze, gravity, notsolid)
@@ -732,6 +831,18 @@ end
 e2function void entity:propShadow(number shadowEnable)
 	if not ValidAction(self, this, "shadow") then return end
 	this:DrawShadow( shadowEnable ~= 0 )
+end
+
+e2function void entity:propSleep(number sleep)
+	if not ValidAction(self, this, "sleep") then return end
+	local phys = this:GetPhysicsObject()
+	if phys:IsValid() then
+		if sleep ~= 0 then
+			phys:Sleep()
+		else
+			phys:Wake()
+		end
+	end
 end
 
 e2function void entity:propGravity(number gravity)
@@ -1009,7 +1120,7 @@ e2function void entity:setLocalPos(vector pos)
 	WireLib.setLocalPos(this, pos)
 end
 
-[deprecated]
+[deprecated = "Use setPos instead"]
 e2function void entity:reposition(vector pos) = e2function void entity:setPos(vector pos)
 
 e2function void entity:setAng(angle rot)
@@ -1022,7 +1133,7 @@ e2function void entity:setLocalAng(angle rot)
 	WireLib.setLocalAng(this, rot)
 end
 
-[deprecated]
+[deprecated = "Use setAng instead"]
 e2function void entity:rerotate(angle rot) = e2function void entity:setAng(angle rot)
 
 e2function void bone:setPos(vector pos)
@@ -1052,8 +1163,16 @@ e2function void entity:ragdollFreeze(isFrozen)
 	
 end
 
-__e2setcost(150)
+__e2setcost(5)
+e2function angle entity:ragdollGetAng()
+	if not ValidAction(self, this) then return end
 
+	local phys = this:GetPhysicsObject()
+
+	return phys:IsValid() and phys:GetAngles() or self:throw("Tried to use entity without physics", Angle())
+end
+
+__e2setcost(150)
 e2function void entity:ragdollSetPos(vector pos)
 	if not ValidAction(self, this, "pos") then return end
 	
@@ -1067,8 +1186,9 @@ end
 e2function void entity:ragdollSetAng(angle rot)
 	if not ValidAction(self, this, "rot") then return end
 	
+	local o = this:GetPhysicsObject():GetAngles()
 	for _, bone in pairs(GetBones(this)) do
-		setAng(bone, bone:AlignAngles(this:GetForward():Angle(), rot))
+		setAng(bone, bone:AlignAngles(o, rot))
 	end
 	
 	this:PhysWake()
@@ -1188,6 +1308,19 @@ e2function void entity:parentTo(entity target)
 	this:SetParent(target)
 end
 
+e2function void entity:parentToAttachment(entity target, string attachmentName)
+	if not ValidAction(self, this, "parent") then return self:throw("You do not have permission to parent to this prop!", nil) end
+	if not IsValid(target) then return self:throw("Target prop is invalid.", nil) end
+	if not isOwner(self, target) then return self:throw("You do not own the target prop!", nil) end
+	if not parent_antispam( this ) then return self:throw("You are parenting too fast!", nil) end
+	if this == target then return self:throw("You cannot parent a prop to itself") end
+	if not parent_check( self, this, target ) then return self:throw("Parenting chain of entities can't exceed 16 or crash may occur", nil) end
+	if attachmentName == nil then return self:throw("You cannot parent to nil attachment!", nil) end
+
+	this:SetParent(target)
+	this:Fire("SetParentAttachmentMaintainOffset", attachmentName)
+end
+
 __e2setcost(5)
 e2function void entity:deparent()
 	if not ValidAction(self, this, "deparent") then return end
@@ -1281,5 +1414,321 @@ registerCallback("destruct",
 				ent:Remove()
 			end
 		end
+	end
+)
+
+-- * Collision tracking
+
+registerType("collision", "xcd", nil,
+	nil,
+	nil,
+	nil,
+	function(v)
+		return not istable(v) or not v.HitPos
+	end
+)
+
+-- These are just the types we care about
+-- Helps filter out physobjs cause that's not an e2 type
+local typefilter = {
+	entity = "e",
+	vector = "v",
+	number = "n",
+}
+
+local newE2Table = E2Lib.newE2Table
+
+__e2setcost(20)
+
+e2function table collision:toTable()
+	local E2CD = newE2Table()
+	for k,v in pairs(this) do
+		local type = typefilter[string.lower(type(v))]
+		if type then
+			if type == "v" then
+				-- These need to be given copies, otherwise E2s modifications will propagate.
+				E2CD.s[k] = Vector(v)
+			else
+				E2CD.s[k] = v
+			end
+			E2CD.stypes[k] = type
+		end
+	end
+	return E2CD
+end
+
+-- Getter functions below, sorted by return type
+
+__e2setcost(5)
+
+local function GetHitPos(self,collision)
+	if not collision then return self:throw("Invalid collision data!") end
+	return Vector(collision.HitPos)
+end
+
+-- * Vectors
+
+e2function vector collision:hitPos()
+	return GetHitPos(self,this)
+end
+
+e2function vector collision:pos()
+	return GetHitPos(self,this)
+end
+
+e2function vector collision:position()
+	return GetHitPos(self,this)
+end
+
+e2function vector collision:ourOldVelocity()
+	if not this then return self:throw("Invalid collision data!",Vector(0,0,0)) end
+	return Vector(this.OurOldVelocity)
+end
+
+e2function vector collision:entityOldVelocity()
+	if not this then return self:throw("Invalid collision data!",Vector(0,0,0)) end
+	return Vector(this.OurOldVelocity)
+end
+
+e2function vector collision:theirOldVelocity()
+	if not this then return self:throw("Invalid collision data!",Vector(0,0,0)) end
+	return Vector(this.TheirOldVelocity)
+end
+
+e2function vector collision:hitEntityOldVelocity()
+	if not this then return self:throw("Invalid collision data!",Vector(0,0,0)) end
+	return Vector(this.TheirOldVelocity)
+end
+
+e2function vector collision:hitNormal()
+	if not this then return self:throw("Invalid collision data!",Vector(0,0,0)) end
+	return Vector(this.HitNormal)
+end
+
+e2function vector collision:hitSpeed()
+	if not this then return self:throw("Invalid collision data!",Vector(0,0,0)) end
+	return Vector(this.HitSpeed)
+end
+
+e2function vector collision:ourNewVelocity()
+	if not this then return self:throw("Invalid collision data!",Vector(0,0,0)) end
+	return Vector(this.OurNewVelocity)
+end
+
+e2function vector collision:entityNewVelocity()
+	if not this then return self:throw("Invalid collision data!",Vector(0,0,0)) end
+	return Vector(this.OurNewVelocity)
+end
+
+e2function vector collision:theirNewVelocity()
+	if not this then return self:throw("Invalid collision data!",Vector(0,0,0)) end
+	return Vector(this.TheirNewVelocity)
+end
+
+e2function vector collision:hitEntityNewVelocity()
+	if not this then return self:throw("Invalid collision data!",Vector(0,0,0)) end
+	return Vector(this.TheirNewVelocity)
+end
+
+e2function vector collision:ourOldAngularVelocity()
+	if not this then return self:throw("Invalid collision data!",Vector(0,0,0)) end
+	return Vector(this.OurOldAngularVelocity)
+end
+
+e2function vector collision:entityOldAngularVelocity()
+	if not this then return self:throw("Invalid collision data!",Vector(0,0,0)) end
+	return Vector(this.OurOldAngularVelocity)
+end
+
+e2function vector collision:theirOldAngularVelocity()
+	if not this then return self:throw("Invalid collision data!",Vector(0,0,0)) end
+	return Vector(this.TheirOldAngularVelocity)
+end
+
+e2function vector collision:hitEntityOldAngularVelocity()
+	if not this then return self:throw("Invalid collision data!",Vector(0,0,0)) end
+	return Vector(this.TheirOldAngularVelocity)
+end
+
+-- * Numbers
+__e2setcost(2)
+
+e2function number collision:speed()
+	if not this then return self:throw("Invalid collision data!",0) end
+	return this.Speed
+end
+
+e2function number collision:ourSurfaceProps()
+	if not this then return self:throw("Invalid collision data!",0) end
+	return this.OurSurfaceProps
+end
+
+e2function number collision:entitySurfaceProps()
+	if not this then return self:throw("Invalid collision data!",0) end
+	return this.OurSurfaceProps
+end
+
+e2function number collision:theirSurfaceProps()
+	if not this then return self:throw("Invalid collision data!",0) end
+	return this.TheirSurfaceProps
+end
+
+e2function number collision:hitEntitySurfaceProps()
+	if not this then return self:throw("Invalid collision data!",0) end
+	return this.TheirSurfaceProps
+end
+
+e2function number collision:deltaTime()
+	if not this then return self:throw("Invalid collision data!",0) end
+	return this.DeltaTime
+end
+
+-- * Entities
+
+e2function entity collision:hitEntity()
+	if not this then return self:throw("Invalid collision data!",Entity(0)) end
+	return this.HitEntity
+end
+
+
+__e2setcost( 20 )
+
+local processNextTick = false
+local registered_chips = {}
+
+local function E2CollisionEventHandler()
+	for chip,ctx in pairs(registered_chips) do
+		if IsValid(chip) then
+			if not chip.error then
+				for _,i in ipairs(ctx.data.E2QueuedCollisions) do
+					if i.cb then
+						-- Arguments for this were checked when we set it up, no need to typecheck
+						i.cb:UnsafeExtCall({i.us,i.xcd.HitEntity,i.xcd},ctx)
+						if chip.error then break end
+					end
+					-- It's okay to ExecuteEvent regardless, it'll just return when it fails to find the registered event
+					chip:ExecuteEvent("entityCollision",{i.us,i.xcd.HitEntity,i.xcd})
+					if chip.error then break end
+				end
+			end
+			-- Wipe queued collisions regardless of error
+			ctx.data.E2QueuedCollisions = {}
+		end
+	end
+	processNextTick = false
+end
+
+local function startCollisionTracking(self,ent,entIndex,lambda)
+	local ctx = self
+	local callbackID = ent:AddCallback("PhysicsCollide",
+	function( us, cd )
+		table.insert(ctx.data.E2QueuedCollisions,{us=us,xcd=cd,cb=lambda})
+		if not processNextTick then
+			processNextTick = true
+			timer.Simple(0,E2CollisionEventHandler) -- A timer set to 0 runs next GM:Tick() hook
+		end
+	end)
+	self.data.E2TrackedCollisions[entIndex] = callbackID -- This ID is needed to remove the physcollide callback
+	ent:CallOnRemove("E2Chip_CCB" .. callbackID, function()
+		self.data.E2TrackedCollisions[entIndex] = nil
+	end)
+end
+
+e2function number trackCollision( entity ent )
+	-- If it's not registered, collisions will just stack up infinitely and not be flushed.
+	if not self.entity.registered_events["entityCollision"] then
+		self:forceThrow("event entityCollision(eexcd) is needed to use trackCollision(e)!")
+	end
+	if IsValid(ent) then
+		local entIndex = ent:EntIndex()
+		if self.data.E2TrackedCollisions[entIndex] then
+			return self:throw("Attempting to track collisions for an already tracked entity",0)
+		end
+		startCollisionTracking(self,ent,entIndex)
+		return 1
+	end
+	return self:throw("Attempting to track collisions for an invalid entity",0)
+end
+
+e2function number trackCollision( entity ent, function cb )
+	-- However, since this one IS providing a callback, we can just register it and run the CB
+	if not registered_chips[self.entity] then
+		registered_chips[self.entity] = self
+	end
+	if IsValid(ent) then
+		local entIndex = ent:EntIndex()
+		if self.data.E2TrackedCollisions[entIndex] then
+			return self:throw("Attempting to track collisions for an already tracked entity",0)
+		end
+		-- First, double check the arg sig lines up
+		if cb.arg_sig ~= "eexcd" then
+			local arg_sig = "(void)"
+			if #cb.arg_sig > 0 then
+				arg_sig = "("..cb.arg_sig..")"
+			end
+			self:forceThrow("Collision callback expecting arguments (eexcd), got "..arg_sig)
+		end
+		startCollisionTracking(self,ent,entIndex,cb)
+		return 1
+	end
+	return self:throw("Attempting to track collisions for an invalid entity",0)
+end
+
+__e2setcost( 5 )
+
+e2function number isTrackingCollision( entity ent )
+	if not IsValid(ent) then
+		return self:throw("Attempting to check tracking of collisions for an invalid entity",0)
+	end
+	if self.data.E2TrackedCollisions[ent:EntIndex()] then
+		return 1
+	else
+		return 0
+	end
+end
+
+e2function void stopTrackingCollision( entity ent )
+	if IsValid(ent) then
+		local entIndex = ent:EntIndex()
+		if self.data.E2TrackedCollisions[entIndex] then
+			local callbackID = self.data.E2TrackedCollisions[entIndex]
+			ent:RemoveCallOnRemove("E2Chip_CCB" .. callbackID)
+			ent:RemoveCallback("PhysicsCollide", callbackID)
+			self.data.E2TrackedCollisions[entIndex] = nil
+		else
+			return self:throw("Attempting to stop tracking collisions for an untracked entity",nil)
+		end
+	else
+		return self:throw("Attempting to stop tracking collisions for an invalid entity",nil)
+	end
+end
+
+registerCallback("construct", function( self )
+	self.data.E2TrackedCollisions = {}
+	self.data.E2QueuedCollisions = {}
+end)
+
+registerCallback("destruct", function( self )
+	for k,v in pairs(self.data.E2TrackedCollisions) do
+		local ent = Entity(tonumber(k))
+		if IsValid(ent) then
+			ent:RemoveCallOnRemove("E2Chip_CCB" .. v)
+			ent:RemoveCallback("PhysicsCollide", v)
+		end
+	end
+	-- Moved from event destructor to general destructor
+	-- Cause now it can be dynamically registered for callback functions
+	registered_chips[self.entity] = nil
+end)
+
+
+
+E2Lib.registerEvent("entityCollision", {
+	{"Entity", "e"},
+	{"HitEntity", "e"},
+	{"CollisionData", "xcd"},
+},
+	function(ctx) -- Event constructor
+		registered_chips[ctx.entity] = ctx
 	end
 )

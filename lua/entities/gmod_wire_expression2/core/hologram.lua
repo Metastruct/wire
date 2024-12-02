@@ -328,10 +328,12 @@ local function flush_player_color_queue()
 	net.Broadcast()
 end
 
+
 registerCallback("postexecute", function(self)
 	if timer.Exists("wire_hologram_postexecute_"..self.uid) then return end
 	timer.Create("wire_hologram_postexecute_"..self.uid,0.1,1,function()
 		if not IsValid(self.entity) then return end
+
 		flush_scale_queue()
 		flush_bone_scale_queue()
 		flush_clip_queue()
@@ -520,6 +522,7 @@ end
 -- Returns the hologram with the given index or nil if it doesn't exist.
 -- if shouldbenil is nil or false, assert that the hologram exists on @strict with an error. Otherwise, don't check (for holo creation, etc)
 local function CheckIndex(self, index, shouldbenil)
+	if index ~= index then return self:throw("holo index is NaN!", nil) end
 	index = math.Clamp(math.floor(index), -2^31, 2^31)
 	local Holo
 	if index<0 then
@@ -1187,8 +1190,16 @@ e2function void holoVisible(index, array players, visible)
 end
 
 -- -----------------------------------------------------------------------------
-local function Parent_Hologram(holo, ent, attachment)
+---@param bone integer?
+local function Parent_Hologram(holo, ent, attachment, bone)
 	if ent:GetParent() and ent:GetParent():IsValid() and ent:GetParent() == holo.ent then return end
+
+	if bone then
+		if bone >= 0 and bone < ent:GetBoneCount() then
+			holo.ent:FollowBone(ent, bone)
+			return
+		end
+	end
 
 	holo.ent:SetParent(ent)
 
@@ -1240,12 +1251,60 @@ e2function void holoParentAttachment(index, entity ent, string attachmentName)
 	Parent_Hologram(Holo, ent, attachmentName)
 end
 
+e2function void holoParentAttachment(index, otherindex, string attachmentName)
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+
+	local Holo2 = CheckIndex(self, otherindex)
+	if not Holo2 then return end
+
+	if not Check_Parents(Holo.ent, Holo2.ent) then return end
+
+	Parent_Hologram(Holo, Holo2.ent, attachmentName)
+end
+
+e2function void holoParentBone(index, entity ent, bone)
+	if not IsValid(ent) then return end
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+
+	Parent_Hologram(Holo, ent, nil, bone)
+end
+
+e2function void holoParentBone(index, otherindex, bone)
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+
+	local Holo2 = CheckIndex(self, otherindex)
+	if not Holo2 then return end
+
+	if not Check_Parents(Holo.ent, Holo2.ent) then return end
+
+	Parent_Hologram(Holo, Holo2.ent, nil, bone)
+end
+
+-- Combination of EF_BONEMERGE and EF_BONEMERGE_FASTCULL, to avoid performance complaints.
+local BONEMERGE_FLAGS = bit.bor(EF_BONEMERGE, EF_BONEMERGE_FASTCULL)
+
 e2function void holoUnparent(index)
 	local Holo = CheckIndex(self, index)
 	if not Holo then return end
 
-	Holo.ent:SetParent(nil)
-	Holo.ent:SetParentPhysNum(0)
+	Holo.ent:RemoveEffects(BONEMERGE_FLAGS)
+	Holo.ent:FollowBone(nil, 0)
+end
+
+__e2setcost(10)
+
+e2function void holoBonemerge(index, state)
+	local Holo = CheckIndex(self, index)
+	if not Holo or not Holo.ent:GetParent():IsValid() then return end
+
+	if state ~= 0 then
+		Holo.ent:AddEffects(BONEMERGE_FLAGS)
+	else
+		Holo.ent:RemoveEffects(BONEMERGE_FLAGS)
+	end
 end
 
 -- -----------------------------------------------------------------------------
@@ -1272,6 +1331,170 @@ e2function number holoIndex(entity ent)
 		if isnumber(k) and ent == Holo.ent then return -k end
 	end
 	return 0
+end
+
+-- -----------------------------------------------------------------------------
+
+local function SetHoloAnim(Holo, Animation, Frame, Rate)
+	if (Holo and Animation and Frame and Rate) then
+		if not Holo.ent.Animated then
+			-- This must be run once on entities that will be animated
+			Holo.ent.Animated = true
+			Holo.ent.AutomaticFrameAdvance = true
+		end
+		Holo.ent:ResetSequence(Animation)
+		Holo.ent:SetCycle(math.Clamp(Frame, 0, 1))
+		--Something mustve changed between the time holoAnim core was made and now, negative values no longer affect the "Frame" value
+		Holo.ent:SetPlaybackRate(math.Clamp(Rate, -12, 12))
+	end
+end
+
+__e2setcost(15)
+e2function void holoAnim(index, string animation)
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+	local anim = Holo.ent:LookupSequence(animation)
+	if anim == -1 then self:throw("'" .. animation .. "' does not exist on this model!", 0) end
+
+	SetHoloAnim(Holo, anim, 0, 1)
+end
+
+e2function void holoAnim(index, string animation, frame)
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+	if Holo.ent:LookupSequence(animation) == -1 then self:throw("'" .. animation .. "' does not exist on this model!", 0) end
+
+	SetHoloAnim(Holo, animation, frame, 1)
+end
+
+e2function void holoAnim(index, string animation, frame, rate)
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+	if Holo.ent:LookupSequence(animation) == -1 then self:throw("'" .. animation .. "' does not exist on this model!", 0) end
+
+	SetHoloAnim(Holo, animation, frame, rate)
+end
+
+e2function void holoAnim(index, animation)
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+
+	SetHoloAnim(Holo, animation, 0, 1)
+end
+
+e2function void holoAnim(index, animation, frame)
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+
+	SetHoloAnim(Holo, animation, frame, 1)
+end
+
+e2function number holoGetAnimFrame(index)
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+
+	return Holo.ent:GetCycle()
+end
+
+e2function void holoAnim(index, animation, frame, rate)
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+
+	SetHoloAnim(Holo, animation, frame, rate)
+end
+
+e2function array holoGetAnims(index)
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+
+	return Holo.ent:GetSequenceList()
+end
+
+e2function number holoAnimLength(index)
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+
+	return Holo.ent:SequenceDuration()
+end
+
+e2function number holoAnimNum(index, string animation)
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+
+	return Holo.ent:LookupSequence(animation) or 0
+end
+
+e2function number holoGetAnimGroundSpeed(index, string animation)
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+	local anim = Holo.ent:LookupSequence(animation)
+	if anim == -1 then self:throw("'" .. animation .. "' does not exist on this model!", 0) end
+
+	return Holo.ent:GetSequenceGroundSpeed(anim)
+end
+
+e2function void holoSetAnimFrame(index, frame)
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+
+	Holo.ent:SetCycle(math.Clamp(frame, 0, 1))
+end
+
+e2function void holoSetAnimSpeed(index, rate)
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+
+	Holo.ent:SetPlaybackRate(math.Clamp(rate, -12, 12))
+end
+
+e2function number holoGetAnimGroundSpeed(index, animation)
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+
+	return Holo.ent:GetSequenceGroundSpeed(animation)
+end
+
+e2function void holoSetPose(index, string pose, value)
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+
+	Holo.ent:SetPoseParameter(pose, value)
+end
+
+e2function number holoGetPose(index, string pose)
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+
+	local pose_param = Holo.ent:LookupPoseParameter(pose)
+	if pose_param == -1 then self:throw("'" .. pose .. "' pose parameter does not exist on this model!", 0) end
+	return Holo.ent:GetPoseParameter(pose_param)
+end
+
+e2function array holoGetPoses(index)
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+
+	local tbl = {}
+	for i = 0, Holo.ent:GetNumPoseParameters() - 1 do
+		table.insert(tbl, Holo.ent:GetPoseParameterName(i))
+	end
+	return tbl
+end
+
+e2function vector2 holoGetPoseRange(index, string pose)
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+
+	local pose_param = Holo.ent:LookupPoseParameter(pose)
+	if pose_param == -1 then self:throw("'" .. pose .. "' pose parameter doesn't exist on this model!", 0) end
+	return { Holo.ent:GetPoseParameterRange(pose_param) }
+end
+
+e2function void holoClearPoses(index)
+	local Holo = CheckIndex(self, index)
+	if not Holo then return end
+
+	Holo.ent:ClearPoseParameters()
 end
 
 -- -----------------------------------------------------------------------------

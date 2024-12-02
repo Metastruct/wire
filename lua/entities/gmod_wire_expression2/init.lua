@@ -116,9 +116,10 @@ function ENT:UpdatePerf(selfTbl)
 	context.time = 0
 end
 
-function ENT:Execute()
+function ENT:Execute(script, context)
 	local selfTbl = self:GetTable()
-	local context = selfTbl.context
+	context = context or selfTbl.context
+	script = script or selfTbl.script
 	if not context or selfTbl.error or context.resetting then return end
 
 	self:PCallHook("preexecute")
@@ -131,7 +132,7 @@ function ENT:Execute()
 
 	local bench = SysTime()
 
-	local ok, msg = pcall(selfTbl.script, context)
+	local ok, msg = pcall(script, context)
 
 	if not ok then
 		local _catchable, msg, trace = E2Lib.unpackException(msg)
@@ -583,6 +584,27 @@ function ENT:Reset()
 			self:Setup(self.original, self.inc_files)
 		end
 	end)
+end
+
+function ENT:ReadCell(Address)
+	local selfTbl = self:GetTable()
+	if selfTbl.error or not selfTbl.registered_events["readCell"] then return nil end
+	local ctx = selfTbl.context
+	ctx.data.hispeedIOError = false
+	ctx.data.readCellValue = 0
+	self:ExecuteEvent("readCell",{Address})
+	if ctx.data.hispeedIOError or self.error then return nil end
+	return ctx.data.readCellValue
+end
+
+function ENT:WriteCell(addr,value)
+	local selfTbl = self:GetTable()
+	if selfTbl.error or not selfTbl.registered_events["writeCell"] then return nil end
+	local ctx = selfTbl.context
+	ctx.data.hispeedIOError = false
+	self:ExecuteEvent("writeCell",{addr,value})
+	if ctx.data.hispeedIOError or self.error then return nil end
+	return true
 end
 
 function ENT:TriggerInput(key, value)

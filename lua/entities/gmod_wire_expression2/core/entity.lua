@@ -1,3 +1,5 @@
+local wire_expression2_entity_trails_max = CreateConVar("wire_expression2_entity_trails_max", 30, FCVAR_ARCHIVE, "Max amount of trails a player can make. 0 - to disable trails. (Limit is shared between E2s of a player)", 0)
+
 registerType("entity", "e", nil,
 	nil,
 	function(self,output) return output or NULL end,
@@ -19,6 +21,7 @@ local canProperty = WireLib.CanProperty
 local canEditVariable = WireLib.CanEditVariable
 
 local sun = ents.FindByClass("env_sun")[1] -- used for sunDirection()
+local trailedEntsAmount = {};
 
 hook.Add("InitPostEntity","sunent",function()
 	sun = ents.FindByClass("env_sun")[1]
@@ -831,17 +834,6 @@ E2Lib.registerEvent("playerEnteredVehicle", {
 
 --[[******************************************************************************]]
 
-local SetTrails = duplicator.EntityModifiers.trail
-
---- Removes the trail from <this>.
-e2function void entity:removeTrails()
-	if not checkOwner(self) then return end
-	if not IsValid(this) then return self:throw("Invalid entity!", nil) end
-	if not isOwner(self, this) then return self:throw("You do not own this entity!", nil) end
-
-	SetTrails(self.player, this, nil)
-end
-
 local function composedata(startSize, endSize, length, material, color, alpha)
 	if string.find(material, '"', 1, true) then return nil end
 
@@ -857,28 +849,83 @@ local function composedata(startSize, endSize, length, material, color, alpha)
 	}
 end
 
-__e2setcost(500)
+local function validateCanTrail(self, ent)
+	if not checkOwner(self) then return end
+	if not IsValid(ent) then return self:throw("Invalid entity!", nil) end
+	if not isOwner(self, ent) then return self:throw("You do not own this entity!", nil) end
+end
+
+local function removeTrail(self, ent)
+	local PlayerSteamID = self.player:SteamID()
+	if not trailedEntsAmount[PlayerSteamID] then return end
+	if not trailedEntsAmount[PlayerSteamID][ent] then return end
+
+	trailedEntsAmount[PlayerSteamID][ent] = nil
+	duplicator.EntityModifiers.trail(self.player, ent, nil)
+end
+
+local function setTrail(self, ent, Data)
+	local PlayerSteamID = self.player:SteamID()
+	if not trailedEntsAmount[PlayerSteamID] then trailedEntsAmount[PlayerSteamID] = {} end
+
+	-- Removing a trail (just in case)
+	if Data == nil then
+		removeTrail(self, ent)
+		return
+	end
+
+	-- Setting a trail
+	if wire_expression2_entity_trails_max:GetInt() < table.Count(trailedEntsAmount[PlayerSteamID])+1 then return self:throw("Trails limit reached!", nil) end
+	trailedEntsAmount[PlayerSteamID][ent] = true
+	ent:CallOnRemove("wire_expression2_trail_remove", function(ent)
+		trailedEntsAmount[PlayerSteamID][ent] = nil
+	end)
+
+	duplicator.EntityModifiers.trail(self.player, ent, Data)
+end
+
+__e2setcost(50)
+
+--- Removes the trail from <this>.
+e2function void entity:removeTrails()
+	validateCanTrail(self, this)
+	removeTrail(self, this)
+end
+
+__e2setcost(75)
 
 --- StartSize, EndSize, Length, Material, Color (RGB), Alpha
 --- Adds a trail to <this> with the specified attributes.
 e2function void entity:setTrails(startSize, endSize, length, string material, vector color, alpha)
-	if not checkOwner(self) then return end
-	if not IsValid(this) then return self:throw("Invalid entity!", nil) end
-	if not isOwner(self, this) then return self:throw("You do not own this entity!", nil) end
+	validateCanTrail(self, this)
 
 	local Data = composedata(startSize, endSize, length, material, color, alpha)
 	if not Data then return end
 
-	SetTrails(self.player, this, Data)
+	setTrail(self, this, Data)
 end
 
+e2function void entity:setTrails(startSize, endSize, length, string material, vector4 color)
+	validateCanTrail(self, this)
 
---- StartSize, EndSize, Length, Material, Color (RGB), Alpha, AttachmentID, Additive
---- Adds a trail to <this> with the specified attributes.
+	local Data = composedata(startSize, endSize, length, material, { color[1], color[2], color[3] }, color[4])
+	if not Data then return end
+
+	setTrail(self, this, Data)
+end
+
+e2function void entity:setTrails(startSize, endSize, length, string material)
+	validateCanTrail(self, this)
+
+	local Data = composedata(startSize, endSize, length, material, { 255, 255, 255 }, 255)
+	if not Data then return end
+
+	setTrail(self, this, Data)
+end
+
+-- + Attachments
 e2function void entity:setTrails(startSize, endSize, length, string material, vector color, alpha, attachmentID, additive)
-	if not checkOwner(self) then return end
-	if not IsValid(this) then return self:throw("Invalid entity!", nil) end
-	if not isOwner(self, this) then return self:throw("You do not own this entity!", nil) end
+	validateCanTrail(self, this)
 
 	local Data = composedata(startSize, endSize, length, material, color, alpha)
 	if not Data then return end
@@ -886,7 +933,26 @@ e2function void entity:setTrails(startSize, endSize, length, string material, ve
 	Data.AttachmentID = attachmentID
 	Data.Additive = additive ~= 0
 
-	SetTrails(self.player, this, Data)
+	setTrail(self, this, Data)
+end
+
+__e2setcost(2)
+
+[nodiscard]
+e2function number trailsLeft()
+	return wire_expression2_entity_trails_max:GetInt() - table.Count(trailedEntsAmount[self.player:SteamID()] or {})
+end
+
+[nodiscard]
+e2function number trailsCount()
+	return table.Count(trailedEntsAmount[self.player:SteamID()] or {})
+end
+
+__e2setcost(1)
+
+[nodiscard]
+e2function number trailsMax()
+	return wire_expression2_entity_trails_max:GetInt()
 end
 
 --[[******************************************************************************]]
@@ -1093,10 +1159,45 @@ end
 __e2setcost(50)
 
 e2function array entity:getFlexes()
-	if not IsValid(this) then return self:throw("Invalid entity!", 0) end
+	if not IsValid(this) then return self:throw("Invalid entity!", {}) end
 	local ret = {}
 	for i = 0, this:GetFlexNum() - 1 do
 		ret[i] = this:GetFlexName(i)
+	end
+	self.prf = self.prf + (#ret + 1) * 5
+	return ret
+end
+
+--[[******************************************************************************]]
+-- Model bones
+
+__e2setcost(5)
+
+e2function number entity:getModelBoneCount()
+	if not IsValid(this) then return self:throw("Invalid entity!", 0) end
+
+	return this:GetBoneCount()
+end
+
+e2function number entity:getModelBoneIndex(string bone_name)
+	if not IsValid(this) then return self:throw("Invalid entity!", 0) end
+
+	return this:LookupBone(bone_name) or -1
+end
+
+e2function number entity:getModelBoneName(bone_index)
+	if not IsValid(this) then return self:throw("Invalid entity!", "") end
+
+	return this:GetBoneName(bone_index) or ""
+end
+
+__e2setcost(50)
+
+e2function array entity:getModelBones()
+	if not IsValid(this) then return self:throw("Invalid entity!", {}) end
+	local ret = {}
+	for i = 0, this:GetBoneCount() - 1 do
+		ret[i] = this:GetBoneName(i)
 	end
 	self.prf = self.prf + (#ret + 1) * 5
 	return ret

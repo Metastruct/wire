@@ -492,7 +492,7 @@ function ENT:Think()
 	local selfTbl = ent_GetTable(self)
 	local ply = selfTbl.Ply
 
-	if ply and selfTbl.Activated then
+	if IsValid(ply) and selfTbl.Activated then
 		local pod = selfTbl.Pod
 
 		-- Tracing
@@ -501,7 +501,7 @@ function ENT:Think()
 		local trace = util.TraceLine({ start = shootPos, endpos = shootPos + aimVector * 9999999999, filter = { ply, pod } })
 		local distance
 		local hitPos = trace.HitPos
-		if pod then distance = hitPos:Distance(pod:GetPos()) else distance = hitPos:Distance(shootPos) end
+		if IsValid(pod) then distance = hitPos:Distance(pod:GetPos()) else distance = hitPos:Distance(shootPos) end
 
 		if trace.Hit then
 			-- Position
@@ -519,7 +519,7 @@ function ENT:Think()
 				local originalangle
 				if selfTbl.RC then
 					originalangle = selfTbl.RC.InitialAngle
-				elseif pod then
+				elseif IsValid(pod) then
 					local attachment = pod:LookupAttachment("vehicle_driver_eyes")
 					if attachment > 0 then
 						originalangle = pod:GetAttachment(attachment).Ang
@@ -552,7 +552,9 @@ function ENT:Think()
 			if IsValid(button) and (inAttack and not mouseDown) and not button:IsVehicle() and button.Use then
 				-- Generic support (Buttons, Dynamic Buttons, Levers, EGP screens, etc)
 				selfTbl.MouseDown = true
-				button:Use(ply, self, USE_ON, 0)
+				if hook.Run("PlayerUse", ply, button) ~= false then
+					button:Use(ply, self, USE_ON, 0)
+				end
 			elseif not inAttack and mouseDown then
 				selfTbl.MouseDown = false
 			end
@@ -561,7 +563,7 @@ function ENT:Think()
 		-- Other info
 		recacheOutput(self, selfTbl, "Health", ply:Health())
 		recacheOutput(self, selfTbl, "Armor", ply:Armor())
-		if pod then recacheOutput(self, selfTbl, "ThirdPerson", pod:GetThirdPersonMode() and 1 or 0) end
+		if IsValid(pod) then recacheOutput(self, selfTbl, "ThirdPerson", pod:GetThirdPersonMode() and 1 or 0) end
 	end
 
 	self:NextThink(CurTime())
@@ -581,17 +583,13 @@ function ENT:PlayerEntered(ply, RC)
 	local pod = self:GetPod()
 
 	if self.HideHUD > 0 and pod then
-		timer.Simple(0.1, function()
-			net.Start("wire_pod_hud")
-				net.WriteUInt(self.HideHUD, 2)
-			net.Send(ply)
-		end)
+		net.Start("wire_pod_hud")
+			net.WriteUInt(self.HideHUD, 2)
+		net.Send(ply)
 	end
 
 	if self.ShowCursor > 0 and pod then
-		timer.Simple(0.1, function()
-			self:NetShowCursor(self.ShowCursor, ply)
-		end)
+		self:NetShowCursor(self.ShowCursor, ply)
 	end
 
 	if self.HidePlayerVal then
@@ -640,7 +638,7 @@ end
 function Wire_Pod_EnterVehicle(ply, vehicle)
 	for _, v in ipairs(pods) do
 		local pod = v:GetPod()
-		if pod and pod == vehicle then
+		if pod == vehicle and ply:GetVehicle() == pod then
 			v:PlayerEntered(ply)
 		end
 	end
