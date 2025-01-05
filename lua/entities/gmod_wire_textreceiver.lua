@@ -15,11 +15,13 @@ local function RemoveReceiver( ent )
 	receivers[ent] = nil
 end
 
-hook.Add( "PlayerSay", "Wire Text receiver PlayerSay", function( ply, txt )
+hook.Add( "PlayerSay", "Wire Text receiver PlayerSay", function( ply, txt, teamchat, localchat )
+	if teamchat == true then return end
 	for ent,_ in pairs( receivers ) do
 		if not ent or not ent:IsValid() then
 			RemoveReceiver( ent )
 		else
+			if localchat == true and ply ~= (ent.CPPIGetOwner and ent:CPPIGetOwner()) then continue end
 			ent:PlayerSpoke( ply, txt )
 		end
 	end
