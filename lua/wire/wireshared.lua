@@ -16,6 +16,8 @@ local string_sub = string.sub
 local utf8_char = utf8.char
 local hook = hook
 
+MAX_EDICT_BITS = MAX_EDICT_BITS or 13 -- Delete once MAX_EDICT_BITS is fully out in base GMod
+
 -- extra table functions
 
 -- Returns a noniterable version of tbl. So indexing still works, but pairs(tbl) won't find anything
@@ -478,7 +480,7 @@ if SERVER then
 			if not DontSend then
 				net.Start("wire_ports")
 					net.WriteInt(-3, 8) -- set eid
-					net.WriteUInt(eid, 16) -- entity id
+					net.WriteUInt(eid, MAX_EDICT_BITS) -- entity id
 					if hasinputs then net.WriteInt(-1, 8) end -- delete inputs
 					if hasoutputs then net.WriteInt(-2, 8) end -- delete outputs
 					net.WriteInt(0, 8) -- break
@@ -559,7 +561,7 @@ if SERVER then
 			eid = msg[1]
 			writeCurrentStrings() -- We're switching to talking about a different entity, lets send port information
 			net.WriteInt(-3,8)
-			net.WriteUInt(eid,16)
+			net.WriteUInt(eid,MAX_EDICT_BITS)
 		end
 
 		local msgtype = msg[2]
@@ -635,7 +637,7 @@ elseif CLIENT then
 			elseif cmd == -2 then
 				ents_with_outputs[eid] = nil
 			elseif cmd == -3 then
-				eid = net.ReadUInt(16)
+				eid = net.ReadUInt(MAX_EDICT_BITS)
 			elseif cmd == -4 then
 				connections[#connections+1] = {eid, net.ReadUInt(8), net.ReadBit() ~= 0} -- Delay this process till after the loop
 			elseif cmd > 0 then
@@ -942,11 +944,9 @@ local minx, miny, minz = -16384, -16384, -16384
 local maxx, maxy, maxz = 16384, 16384, 16384
 local clamp = math.Clamp
 function WireLib.clampPos(pos)
-	pos = Vector(pos)
-	pos.x = clamp(pos.x, minx, maxx)
-	pos.y = clamp(pos.y, miny, maxy)
-	pos.z = clamp(pos.z, minz, maxz)
-	return pos
+	local x, y, z = pos:Unpack()
+
+	return Vector(clamp(x, minx, maxx), clamp(y, miny, maxy), clamp(z, minz, maxz))
 end
 
 function WireLib.setPos(ent, pos)
@@ -1014,10 +1014,12 @@ end)
 
 -- Nan never equals itself, so if the value doesn't equal itself replace it with 0.
 function WireLib.clampForce( v )
+	local x, y, z = v:Unpack()
+
 	return Vector(
-		v[1] == v[1] and math.Clamp( v[1], min_force, max_force ) or 0,
-		v[2] == v[2] and math.Clamp( v[2], min_force, max_force ) or 0,
-		v[3] == v[3] and math.Clamp( v[3], min_force, max_force ) or 0
+		clamp( x, min_force, max_force ),
+		clamp( y, min_force, max_force ),
+		clamp( z, min_force, max_force )
 	)
 end
 

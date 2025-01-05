@@ -450,6 +450,16 @@ e2function number entity:isNPC()
 	if this:IsNPC() then return 1 else return 0 end
 end
 
+e2function number entity:isNextBot()
+	if not IsValid(this) then return self:throw("Invalid entity!", 0) end
+	if this:IsNextBot() then return 1 else return 0 end
+end
+
+e2function number entity:isRagdoll()
+	if not IsValid(this) then return self:throw("Invalid entity!", 0) end
+	if this:IsRagdoll() then return 1 else return 0 end
+end
+
 e2function number entity:isVehicle()
 	if not IsValid(this) then return self:throw("Invalid entity!", 0) end
 	if this:IsVehicle() then return 1 else return 0 end
@@ -579,6 +589,24 @@ e2function number entity:isFrozen()
 	if not validPhysics(this) then return self:throw("Invalid entity!", 0) end
 	local phys = this:GetPhysicsObject()
 	if phys:IsMoveable() then return 0 else return 1 end
+end
+
+e2function number entity:isAsleep()
+	if not validPhysics(this) then return self:throw("Invalid entity!", 0) end
+	local phys = this:GetPhysicsObject()
+	if phys:IsAsleep() then return 1 else return 0 end
+end
+
+e2function number entity:isGravityEnabled()
+	if not validPhysics(this) then return self:throw("Invalid entity!", 0) end
+	local phys = this:GetPhysicsObject()
+	if phys:IsGravityEnabled() then return 1 else return 0 end
+end
+
+e2function number entity:isPenetrating()
+	if not validPhysics(this) then return self:throw("Invalid entity!", 0) end
+	local phys = this:GetPhysicsObject()
+	if phys:IsPenetrating() then return 1 else return 0 end
 end
 
 --[[******************************************************************************]]
@@ -830,6 +858,63 @@ E2Lib.registerEvent("playerLeftVehicle", {
 E2Lib.registerEvent("playerEnteredVehicle", {
 	{ "Player", "e" },
 	{ "Vehicle", "e" },
+})
+
+--[[******************************************************************************]]
+
+hook.Add("PhysgunPickup", "Exp2RunOnPhysgunPickup", function(ply, entity)
+	E2Lib.triggerEvent("playerPhysgunPickup", { ply, entity })
+end)
+
+hook.Add("PhysgunDrop", "Exp2RunOnPhysgunDrop", function(ply, entity)
+	E2Lib.triggerEvent("playerPhysgunDrop", { ply, entity })
+end)
+
+E2Lib.registerEvent("playerPhysgunPickup", {
+	{ "Player", "e" },
+	{ "Entity", "e" },
+})
+
+E2Lib.registerEvent("playerPhysgunDrop", {
+	{ "Player", "e" },
+	{ "Entity", "e" },
+})
+
+hook.Add("GravGunOnPickedUp", "Exp2RunOnGravGunPickup", function(ply, entity)
+	E2Lib.triggerEvent("playerGravGunPickup", { ply, entity })
+end)
+
+hook.Add("GravGunOnDropped", "Exp2RunOnGravGunDrop", function(ply, entity)
+	E2Lib.triggerEvent("playerGravGunDrop", { ply, entity })
+end)
+
+E2Lib.registerEvent("playerGravGunPickup", {
+	{ "Player", "e" },
+	{ "Entity", "e" },
+})
+
+E2Lib.registerEvent("playerGravGunDrop", {
+	{ "Player", "e" },
+	{ "Entity", "e" },
+})
+
+hook.Add("OnPlayerPhysicsPickup", "Exp2RunOnPhysicsPickup", function(ply, entity)
+	E2Lib.triggerEvent("playerPhysicsPickup", { ply, entity })
+end)
+
+hook.Add("OnPlayerPhysicsDrop", "Exp2RunPhysicsDrop", function(ply, entity, thrown)
+	E2Lib.triggerEvent("playerPhysicsDrop", { ply, entity, thrown == true and 1 or 0 })
+end)
+
+E2Lib.registerEvent("playerPhysicsPickup", {
+	{ "Player", "e" },
+	{ "Entity", "e" },
+})
+
+E2Lib.registerEvent("playerPhysicsDrop", {
+	{ "Player", "e" },
+	{ "Entity", "e" },
+	{ "Thrown", "n" }
 })
 
 --[[******************************************************************************]]
