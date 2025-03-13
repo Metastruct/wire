@@ -104,10 +104,14 @@ e2function string entity:name()
 	return this:GetName() or ""
 end
 
-e2function string entity:type()
+[nodiscard]
+e2function string entity:getClass()
 	if not IsValid(this) then return self:throw("Invalid entity!", "") end
 	return this:GetClass()
 end
+
+[deprecated = "Use getClass"]
+e2function string entity:type() = e2function string entity:getClass()
 
 e2function string entity:model()
 	if not IsValid(this) then return self:throw("Invalid entity!", "") end
@@ -117,6 +121,15 @@ end
 e2function entity entity:owner()
 	if not IsValid(this) then return self:throw("Invalid entity!", nil) end
 	return getOwner(self, this)
+end
+
+__e2setcost(100)
+
+e2function array entities()
+	local entities = ents.GetAll()
+	self.prf = self.prf + #entities / 2
+
+	return entities
 end
 
 __e2setcost(20)

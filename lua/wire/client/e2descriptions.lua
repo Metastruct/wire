@@ -54,6 +54,7 @@ E2Helper.Descriptions["isinf(n)"] = "Returns 1 if given value is a positive infi
 E2Helper.Descriptions["isnan(n)"] = "Returns 1 if given value is not a number (NaN); otherwise 0."
 E2Helper.Descriptions["inf()"] = "Returns a huge constant (infinity)"
 E2Helper.Descriptions["mod(nn)"] = "Modulo, returns the Remainder after Argument 1 has been divided by Argument 2. Note \"mod(-1, 3) = -1\""
+E2Helper.Descriptions["factorial(n)"] = "Returns the Factorial of the Argument"
 E2Helper.Descriptions["sqrt(n)"] = "Returns the Square Root of the Argument"
 E2Helper.Descriptions["cbrt(n)"] = "Returns the Cube Root of the Argument"
 E2Helper.Descriptions["root(nn)"] = "Returns the Nth Root of the first Argument"
@@ -183,6 +184,7 @@ E2Helper.Descriptions["hashSHA256(s)"] = "Returns the SHA256 hash of the input s
 
 -- Entity/Player
 E2Helper.Descriptions["entity(n)"] = "Gets the entity associated with the id"
+E2Helper.Descriptions["entities()"] = "Returns an array containing all entities on the map"
 E2Helper.Descriptions["owner()"] = "Gets the owner of the expression ( same as entity():owner() )"
 E2Helper.Descriptions["id(e:)"] = "Gets the numeric id of an entity"
 E2Helper.Descriptions["noentity()"] = "Returns an invalid entity"
