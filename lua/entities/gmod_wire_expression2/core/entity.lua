@@ -523,6 +523,16 @@ e2function string entity:getSubMaterial(index)
 	return this:GetSubMaterial(index-1) or ""
 end
 
+e2function number entity:getModelRadius()
+	if not IsValid(this) then return self:throw("Invalid entity!", 0) end
+	return this:GetModelRadius() or 0
+end
+
+e2function number entity:getModelScale()
+	if not IsValid(this) then return self:throw("Invalid entity!", 0) end
+	return this:GetModelScale()
+end
+
 __e2setcost(20)
 
 e2function array entity:getMaterials()
@@ -579,6 +589,26 @@ end
 e2function number entity:getBodygroups(bgrp_id)
 	if not IsValid(this) then return self:throw("Invalid entity!", 0) end
 	return this:GetBodygroupCount(bgrp_id)
+end
+
+E2Lib.registerConstant("BLOOD_DONT_BLEED", DONT_BLEED)
+E2Lib.registerConstant("BLOOD_COLOR_RED", BLOOD_COLOR_RED)
+E2Lib.registerConstant("BLOOD_COLOR_YELLOW", BLOOD_COLOR_YELLOW)
+E2Lib.registerConstant("BLOOD_COLOR_GREEN", BLOOD_COLOR_GREEN)
+E2Lib.registerConstant("BLOOD_COLOR_MECH", BLOOD_COLOR_MECH)
+E2Lib.registerConstant("BLOOD_COLOR_ANTLION", BLOOD_COLOR_ANTLION)
+E2Lib.registerConstant("BLOOD_COLOR_ZOMBIE", BLOOD_COLOR_ZOMBIE)
+E2Lib.registerConstant("BLOOD_COLOR_ANTLION_WORKER", BLOOD_COLOR_ANTLION_WORKER)
+
+e2function void entity:setBloodColor(number bloodcolor)
+	if not IsValid(this) then return self:throw("Invalid entity!", nil) end
+	if not isOwner(self, this) then return self:throw("You do not own this entity!", nil) end
+	this:SetBloodColor(math.Clamp(bloodcolor, -1, 6))
+end
+
+e2function number entity:getBloodColor()
+	if not IsValid(this) then return self:throw("Invalid entity!", -1) end
+	return this:GetBloodColor() or -1
 end
 
 --[[******************************************************************************]]
@@ -1313,6 +1343,14 @@ hook.Add("OnEntityCreated", "E2_entityCreated", function(ent)
 end)
 
 E2Lib.registerEvent("entityCreated", {
+	{ "Entity", "e" }
+})
+
+hook.Add("EntityRemoved", "E2_entityRemoved", function(ent)
+	E2Lib.triggerEvent("entityRemoved", { ent })
+end)
+
+E2Lib.registerEvent("entityRemoved", {
 	{ "Entity", "e" }
 })
 

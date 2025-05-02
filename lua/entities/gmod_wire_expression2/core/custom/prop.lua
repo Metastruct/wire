@@ -11,6 +11,7 @@ local sbox_E2_PropCore = CreateConVar( "sbox_E2_PropCore", "2", FCVAR_ARCHIVE ) 
 local sbox_E2_canMakeStatue = CreateConVar("sbox_E2_canMakeStatue", "1", FCVAR_ARCHIVE)
 local wire_expression2_propcore_sents_whitelist = CreateConVar("wire_expression2_propcore_sents_whitelist", 1, FCVAR_ARCHIVE, "If 1 - players can spawn sents only from the default sent list. If 0 - players can spawn sents from both the registered list and the entity tab.", 0, 1)
 local wire_expression2_propcore_sents_enabled = CreateConVar("wire_expression2_propcore_sents_enabled", 1, FCVAR_ARCHIVE, "If 1 - this allows sents to be spawned. (Doesn't affect the sentSpawn whitelist). If 0 - prevents sentSpawn from being used at all.", 0, 1)
+local wire_expression2_propcore_canMakeUnbreakable = CreateConVar("wire_expression2_propcore_canMakeUnbreakable", 1, FCVAR_ARCHIVE, "If 1 - this allows props to be made unbreakable. If 0 - prevents propMakeBreakable from being used at all.", 0, 1)
 
 local isOwner = E2Lib.isOwner
 local GetBones = E2Lib.GetBones
@@ -715,6 +716,43 @@ e2function void entity:propBreak()
 	this:Fire("break",1,0)
 end
 
+hook.Add("EntityTakeDamage", "WireUnbreakable", function(ent, dmginfo)
+    if ent.wire_unbreakable then return true end
+end)
+
+[nodiscard]
+e2function number entity:canMakeUnbreakable()
+	if not IsValid(this) then return self:throw("Invalid entity!", 0) end
+	if not wire_expression2_propcore_canMakeUnbreakable:GetBool() then return 0 end
+	return this:GetClass() == "prop_physics" and 1 or 0
+end
+
+e2function void entity:propMakeBreakable(number breakable)
+	if not wire_expression2_propcore_canMakeUnbreakable:GetBool() then return self:throw("Making unbreakable is disabled by server! (wire_expression2_propcore_canMakeUnbreakable)", nil) end
+	if not ValidAction(self, this, "makeUnbreakable") then return end
+	if this:GetClass() ~= "prop_physics" then return self:throw("This entity can not be made unbreakable!", nil) end
+
+	local unbreakable = this:Health() > 0 and breakable == 0 and true or nil
+	if this.wire_unbreakable == unbreakable then return end
+	this.wire_unbreakable = unbreakable
+
+	if unbreakable then
+		self.entity:CallOnRemove("wire_expression2_propcore_propMakeBreakable-" .. this:EntIndex(),
+			function( e )
+				this.wire_unbreakable = nil
+			end
+		)
+	else
+		self.entity:RemoveCallOnRemove("wire_expression2_propcore_propMakeBreakable-" .. this:EntIndex())
+	end
+end
+
+[nodiscard]
+e2function number entity:propIsBreakable()
+	if not IsValid(this) then return self:throw("Invalid entity!", 0) end
+	return this:Health() > 0 and not this.WireUnbreakable and 1 or 0
+end
+
 E2Lib.registerConstant("ENTITY_DISSOLVE_NORMAL", 0)
 E2Lib.registerConstant("ENTITY_DISSOLVE_ELECTRICAL", 1)
 E2Lib.registerConstant("ENTITY_DISSOLVE_ELECTRICAL_LIGHT", 2)
@@ -740,6 +778,7 @@ e2function void entity:use()
 
 	local ply = self.player
 	if not IsValid(ply) then return end -- if the owner isn't connected to the server, do nothing
+	if ply:InVehicle() and this:IsVehicle() then return end -- don't use a vehicle if you're in one
 
 	if hook.Run( "PlayerUse", ply, this ) == false then return end
 	if hook.Run( "WireUse", ply, this, self.entity ) == false then return end
@@ -975,23 +1014,27 @@ e2function void entity:propSetAngVelocityInstant(vector velocity)
 	end
 end
 
-hook.Add( "CanDrive", "checkPropStaticE2", function( ply, ent ) if ent.propStaticE2 ~= nil then return false end end )
-e2function void entity:propStatic( number static )
-	if not ValidAction( self, this, "static" ) then return end
+hook.Add("CanDrive", "checkPropStaticE2", function(ply, ent) if ent.propStaticE2 ~= nil then return false end end)
+
+e2function void entity:propStatic(number static)
+	if not ValidAction(self, this, "static") then return end
+
 	if static ~= 0 and this.propStaticE2 == nil then
 		local phys = this:GetPhysicsObject()
 		this.propStaticE2 = phys:IsMotionEnabled()
 		this.PhysgunDisabled = true
-		this:SetUnFreezable( true )
-		phys:EnableMotion( false )
-	elseif this.propStaticE2 ~= nil then
+		this:SetUnFreezable(true)
+		phys:EnableMotion(false)
+	elseif static == 0 and this.propStaticE2 ~= nil then
 		this.PhysgunDisabled = false
-		this:SetUnFreezable( false )
+		this:SetUnFreezable(false)
+
 		if this.propStaticE2 == true then
 			local phys = this:GetPhysicsObject()
 			phys:Wake()
-			phys:EnableMotion( true )
+			phys:EnableMotion(true)
 		end
+
 		this.propStaticE2 = nil
 	end
 end
@@ -1621,14 +1664,16 @@ local function E2CollisionEventHandler()
 		if IsValid(chip) then
 			if not chip.error then
 				for _,i in ipairs(ctx.data.E2QueuedCollisions) do
-					if i.cb then
-						-- Arguments for this were checked when we set it up, no need to typecheck
-						i.cb:UnsafeExtCall({i.us,i.xcd.HitEntity,i.xcd},ctx)
+					if ctx.data.E2TrackedCollisions[i.us:EntIndex()] then
+						if i.cb then
+							-- Arguments for this were checked when we set it up, no need to typecheck
+							i.cb:UnsafeExtCall({i.us,i.xcd.HitEntity,i.xcd},ctx)
+							if chip.error then break end
+						end
+						-- It's okay to ExecuteEvent regardless, it'll just return when it fails to find the registered event
+						chip:ExecuteEvent("entityCollision",{i.us,i.xcd.HitEntity,i.xcd})
 						if chip.error then break end
 					end
-					-- It's okay to ExecuteEvent regardless, it'll just return when it fails to find the registered event
-					chip:ExecuteEvent("entityCollision",{i.us,i.xcd.HitEntity,i.xcd})
-					if chip.error then break end
 				end
 			end
 			-- Wipe queued collisions regardless of error
