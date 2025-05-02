@@ -37,7 +37,7 @@ function ENT:TriggerInput(iname, value)
 
 		if ply:IsPlayer() and ply:InVehicle() and trace.Entity:IsVehicle() then return end -- don't use a vehicle if you're in one
 
-		if hook.Run( "PlayerUse", ply, trace.Entity ) == false then return false end
+		if ply:IsPlayer() and hook.Run( "PlayerUse", ply, trace.Entity ) == false then return false end
 		if hook.Run( "WireUse", ply, trace.Entity, self ) == false then return false end
 
 		if trace.Entity.Use then
