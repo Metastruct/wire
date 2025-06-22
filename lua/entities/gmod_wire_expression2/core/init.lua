@@ -104,32 +104,6 @@ function __e2getcost()
 	return tempcost
 end
 
----@param args string
----@return string?, table
-local function getArgumentTypeIds(args)
-	local thistype, nargs = args:match("^([^:]+):(.*)$")
-	if nargs then args = nargs end
-
-	local out, ptr = {}, 1
-	while ptr <= #args do
-		local c = args:sub(ptr, ptr)
-		if c == "x" then
-			out[#out + 1] = args:sub(ptr, ptr + 2)
-			ptr = ptr + 3
-		elseif args:sub(ptr) == "..." then
-			out[#out + 1] = "..."
-			ptr = ptr + 3
-		elseif c:match("^%w") then
-			out[#out + 1] = c
-			ptr = ptr + 1
-		else
-			error("Invalid signature: " .. args)
-		end
-	end
-
-	return thistype, out
-end
-
 local EnforcedTypings = {
 	["is"] = "n"
 }
@@ -270,11 +244,15 @@ end
 function E2Lib.triggerEvent(name, args)
 	assert(E2Lib.Env.Events[name], "E2Lib.triggerEvent on nonexisting event: '" .. name .. "'")
 
-	for ent in pairs(E2Lib.Env.Events[name].listening) do
+	local event_listeners = E2Lib.Env.Events[name].listening
+
+	for i = #event_listeners, 1, -1 do
+		local ent = event_listeners[i]
+
 		if ent.ExecuteEvent then
 			ent:ExecuteEvent(name, args)
-		else -- Destructor somehow wasn't run?
-			E2Lib.Env.Events[name].listening[ent] = nil
+		else
+			table.remove(event_listeners, i)
 		end
 	end
 end
@@ -285,12 +263,16 @@ end
 function E2Lib.triggerEventOmit(name, args, ignore)
 	assert(E2Lib.Env.Events[name], "E2Lib.triggerEventOmit on nonexisting event: '" .. name .. "'")
 
-	for ent in pairs(E2Lib.Env.Events[name].listening) do
+	local event_listeners = E2Lib.Env.Events[name].listening
+
+	for i = #event_listeners, 1, -1 do
+		local ent = event_listeners[i]
+
 		if not ignore[ent] then -- Don't trigger ignored chips
 			if ent.ExecuteEvent then
 				ent:ExecuteEvent(name, args)
 			else -- Destructor somehow wasn't run?
-				E2Lib.Env.Events[name].listening[ent] = nil
+				table.remove(event_listeners, i)
 			end
 		end
 	end
@@ -445,11 +427,11 @@ elseif CLIENT then
 
 	function E2FunctionQueue.receivecb()
 		local state = net.ReadUInt(8)
-		if state==E2FUNC_SENDFUNC then
+		if state == E2FUNC_SENDFUNC then
 			insertData(net.ReadString(), net.ReadString(), net.ReadUInt(16), net.ReadTable(), net.ReadString(), net.ReadTable())
-		elseif state==E2FUNC_SENDMISC then
+		elseif state == E2FUNC_SENDMISC then
 			insertMiscData(net.ReadTable(), net.ReadTable(), net.ReadTable())
-		elseif state==E2FUNC_DONE then
+		elseif state == E2FUNC_DONE then
 			doneInsertingData()
 		end
 	end

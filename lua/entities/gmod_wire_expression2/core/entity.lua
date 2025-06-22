@@ -493,6 +493,11 @@ e2function number entity:isUnderWater()
 	if this:WaterLevel() > 0 then return 1 else return 0 end
 end
 
+e2function number entity:isAlive()
+	if not IsValid(this) then return self:throw("Invalid entity!", 0) end
+	return this:Alive() and 1 or 0
+end
+
 e2function number entity:isValid()
 	if IsValid(this) then return 1 else return 0 end
 end
@@ -585,6 +590,13 @@ e2function number entity:getBodygroup(bgrp_id)
 	if not IsValid(this) then return self:throw("Invalid entity!", 0) end
 	return this:GetBodygroup(bgrp_id)
 end
+
+--- Gets <this>'s bodygroup name.
+e2function string entity:getBodygroupName(bgrp_id)
+    if not IsValid(this) then return self:throw("Invalid entity!", "") end
+    return this:GetBodygroupName(bgrp_id)
+end
+
 --- Gets <this>'s bodygroup count.
 e2function number entity:getBodygroups(bgrp_id)
 	if not IsValid(this) then return self:throw("Invalid entity!", 0) end
@@ -781,6 +793,14 @@ e2function void entity:podStripWeapons()
 		ply:StripWeapons()
 		ply:ChatPrint("Your weapons have been stripped!")
 	end
+end
+
+e2function void entity:podSetName(string name)
+	if not IsValid(this) or not this:IsVehicle() or not this.VehicleTable or not this.VehicleTable.Name then return self:throw("Invalid vehicle!", nil) end
+	if not isOwner(self, this) then return self:throw("You do not own this entity!", nil) end
+	if hook.Run("Wire_CanName") == false then return self:throw("A hook prevented this function from running") end
+	name = name:sub(1,200)
+	this.VehicleTable.Name = name
 end
 
 --[[******************************************************************************]]
