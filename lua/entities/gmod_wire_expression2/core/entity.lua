@@ -91,6 +91,9 @@ end
 --[[******************************************************************************]]
 -- Functions getting string
 
+E2Lib.registerConstant("NO_ENTITY", NULL, "An invalid entity")
+
+[deprecated = "Use the constant NO_ENTITY instead"]
 e2function entity noentity()
 	return NULL
 end
@@ -798,9 +801,8 @@ end
 e2function void entity:podSetName(string name)
 	if not IsValid(this) or not this:IsVehicle() or not this.VehicleTable or not this.VehicleTable.Name then return self:throw("Invalid vehicle!", nil) end
 	if not isOwner(self, this) then return self:throw("You do not own this entity!", nil) end
-	if hook.Run("Wire_CanName") == false then return self:throw("A hook prevented this function from running") end
-	name = name:sub(1,200)
-	this.VehicleTable.Name = name
+	if hook.Run("Wire_CanName", name, this, self.player) == false then return self:throw("A hook prevented this function from running") end
+	this.VehicleTable.Name = name:sub(1, 200)
 end
 
 --[[******************************************************************************]]
@@ -1333,7 +1335,7 @@ e2function number entity:getModelBoneIndex(string bone_name)
 	return this:LookupBone(bone_name) or -1
 end
 
-e2function number entity:getModelBoneName(bone_index)
+e2function string entity:getModelBoneName(bone_index)
 	if not IsValid(this) then return self:throw("Invalid entity!", "") end
 
 	return this:GetBoneName(bone_index) or ""

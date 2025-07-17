@@ -9,8 +9,8 @@ local Wire_EnableGateInputValues = CreateConVar("Wire_EnableGateInputValues", 1,
 
 function ENT:Initialize()
 	self:PhysicsInit(SOLID_VPHYSICS)
-	self.Inputs = {}
-	self.Outputs = {}
+	WireLib.CreateInputs(self, {})
+	WireLib.CreateOutputs(self, {})
 end
 
 function ENT:Setup(action, noclip)
@@ -127,8 +127,8 @@ function ENT:CalcOutput(iter, selfTbl)
 	end
 end
 
-function ENT:ShowOutput(selfTbl)
-	selfTbl = selfTbl or self:GetTable()
+function ENT:PrepareOverlayData()
+	local selfTbl = self:GetTable()
 	local action = selfTbl.Action
 	local txt
 
@@ -143,10 +143,6 @@ function ENT:ShowOutput(selfTbl)
 	end
 
 	self:SetOverlayText(txt)
-end
-
-function ENT:PrepareOverlayData()
-	self:ShowOutput()
 end
 
 function ENT:OnRestore()
