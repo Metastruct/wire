@@ -199,7 +199,8 @@ end
 ---@param args { [1]: string, [2]: string }[]?
 ---@param constructor fun(self: table)? # Constructor to run when E2 initially starts listening to this event. Passes E2 context
 ---@param destructor fun(self: table)? # Destructor to run when E2 stops listening to this event. Passes E2 context
-function E2Lib.registerEvent(name, args, constructor, destructor)
+---@param description string
+function E2Lib.registerEvent(name, args, constructor, destructor, description)
 	-- Ensure event starts with lowercase letter
 	-- assert(not E2Lib.Env.Events[name], "Possible addon conflict: Trying to override existing E2 event '" .. name .. "'")
 
@@ -231,6 +232,8 @@ function E2Lib.registerEvent(name, args, constructor, destructor)
 	E2Lib.Env.Events[name] = {
 		name = name,
 		args = args or {},
+		extension = E2Lib.currentextension,
+		description = description,
 
 		constructor = constructor,
 		destructor = destructor,
@@ -294,25 +297,22 @@ do
 	loadFiles("",file.Find("entities/gmod_wire_expression2/core/cl_*.lua", "LUA"))
 end
 
-local E2FunctionQueue = WireLib.NetQueue("e2_functiondata")
-local E2FUNC_SENDMISC, E2FUNC_SENDFUNC, E2FUNC_DONE = 0, 1, 2
 if SERVER then
+	util.AddNetworkString("e2_functiondata")
 	-- Serverside files are loaded in extloader
 	include("extloader.lua")
 
 	-- -- Transfer E2 function info to the client for validation and syntax highlighting purposes -- --
-
-	local miscdata = {} -- Will contain {E2 types info, constants}, this whole table is under 1kb
-	local functiondata = {} -- Will contain {functionname = {returntype, cost, argnames, extension}, this will be between 50-100kb
-
 	-- Fills out the above two tables
-	function wire_expression2_prepare_functiondata()
+	local function getE2FunctionData()
 		-- Sanitize events so 'listening' e2's aren't networked
 		local events_sanitized = {}
 		for evt, data in pairs(E2Lib.Env.Events) do
 			events_sanitized[evt] = {
 				name = data.name,
-				args = data.args
+				args = data.args,
+				extension = data.extension,
+				description = data.description
 			}
 		end
 
@@ -321,42 +321,30 @@ if SERVER then
 			types[typename] = v[1] -- typeid (s)
 		end
 
-		miscdata = { types, wire_expression2_constants, events_sanitized }
-		functiondata = {}
+		local miscdata = { types, wire_expression2_constants, events_sanitized }
+		local functiondata = {}
 
 		for signature, v in pairs(wire_expression2_funcs) do
 			functiondata[signature] = { v[2], v[4], v.argnames, v.extension, v.attributes } -- ret (s), cost (n), argnames (t), extension (s), attributes (t)
 		end
-	end
 
-	wire_expression2_prepare_functiondata()
+		return miscdata, functiondata
+	end
 
 	-- Send everything
 	local function sendData(ply)
 		if not (IsValid(ply) and ply:IsPlayer()) then return end
 
-		local queue = E2FunctionQueue.plyqueues[ply]
-		queue:add(function()
-			net.WriteUInt(E2FUNC_SENDMISC, 8)
-			net.WriteTable(miscdata[1])
-			net.WriteTable(miscdata[2])
-			net.WriteTable(miscdata[3])
-		end)
-		for signature, tab in pairs(functiondata) do
-			queue:add(function()
-				net.WriteUInt(E2FUNC_SENDFUNC, 8)
-				net.WriteString(signature) -- The function signature ["holoAlpha(nn)"]
-				net.WriteString(tab[1]) -- The function's return type ["s"]
-				net.WriteUInt(tab[2] or 0, 16) -- The function's cost [5]
-				net.WriteTable(tab[3] or {}) -- The function's argnames table (if a table isn't set, it'll just send a 1 byte blank table)
-				net.WriteString(tab[4] or "unknown")
-				net.WriteTable(tab[5] or {}) -- Attributes
-			end)
-		end
-		queue:add(function()
-			net.WriteUInt(E2FUNC_DONE, 8)
-		end)
-		E2FunctionQueue:flushQueue(ply, queue)
+		local miscdata, functiondata = getE2FunctionData()
+
+		local data = WireLib.von.serialize( {
+			miscdata = miscdata,
+			functiondata = functiondata
+		} )
+
+		net.Start("e2_functiondata")
+		net.WriteStream(data)
+		net.Send(ply)
 	end
 
 	local antispam = WireLib.RegisterPlayerTable()
@@ -425,16 +413,24 @@ elseif CLIENT then
 		E2Lib.Env.Events = events
 	end
 
-	function E2FunctionQueue.receivecb()
-		local state = net.ReadUInt(8)
-		if state == E2FUNC_SENDFUNC then
-			insertData(net.ReadString(), net.ReadString(), net.ReadUInt(16), net.ReadTable(), net.ReadString(), net.ReadTable())
-		elseif state == E2FUNC_SENDMISC then
-			insertMiscData(net.ReadTable(), net.ReadTable(), net.ReadTable())
-		elseif state == E2FUNC_DONE then
+	net.Receive("e2_functiondata", function()
+		net.ReadStream( nil, function( data )
+			local deserialized = WireLib.von.deserialize(data)
+			if not deserialized then
+				error("Failed to deserialize E2 function data from server!\n")
+			end
+
+			wire_expression2_reset_extensions()
+
+			insertMiscData(deserialized.miscdata[1], deserialized.miscdata[2], deserialized.miscdata[3])
+
+			for signature, tab in pairs(deserialized.functiondata) do
+				insertData(signature, tab[1], tab[2] or 0, tab[3] or {}, tab[4] or "unknown", tab[5] or {})
+			end
+
 			doneInsertingData()
-		end
-	end
+		end )
+	end)
 end
 
 -- this file just generates the docs so it doesn't need to run every time.

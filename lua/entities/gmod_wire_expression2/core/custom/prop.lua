@@ -21,25 +21,20 @@ local setAng = WireLib.setAng
 local typeIDToString = WireLib.typeIDToString
 local castE2ValueToLuaValue = E2Lib.castE2ValueToLuaValue
 
+local newE2Table = WireLib.E2Table.New
+
 local E2totalspawnedprops = 0
 local playerMeta = FindMetaTable("Player")
 
-hook.Add("PlayerInitialSpawn", "E2tempSpawnedProps", function(ply)
-	ply.E2tempSpawnedProps = 0
-	ply.E2tempSpawnedPropsTime = 0
-end)
-
-local function TempReset(ply)
-	if (CurTime() >= ply.E2tempSpawnedPropsTime) then
+function PropCore.WithinPropcoreLimits(ply)
+	if CurTime() >= (ply.E2tempSpawnedPropsTime or 0) then
 		ply.E2tempSpawnedProps = 0
 		ply.E2tempSpawnedPropsTime = CurTime() + 1
  end
-end
 
-function PropCore.WithinPropcoreLimits(ply)
-	TempReset(ply)
 	return (sbox_E2_maxProps:GetInt() <= 0 or E2totalspawnedprops<sbox_E2_maxProps:GetInt()) and ply.E2tempSpawnedProps < sbox_E2_maxPropsPerSecond:GetInt()
 end
+
 local WithinPropcoreLimits = PropCore.WithinPropcoreLimits
 
 function PropCore.ValidSpawn(ply, model, vehicleType)
@@ -324,6 +319,9 @@ function PropCore.CreateSent(self, class, pos, angles, freeze, data)
 	elseif sent then -- Spawning an entity from entity tab.
 		if sent.AdminOnly and not self.player:IsAdmin() then return self:throw("You do not have permission to spawn '" .. class .. "' (admin-only)!", NULL) end
 
+		local stored_sent = scripted_ents.GetStored(class)
+
+		if stored_sent and stored_sent.t.SpawnFunction then
 		local mockTrace = {
 			FractionLeftSolid = 0,
 			HitNonWorld       = true,
@@ -340,8 +338,8 @@ function PropCore.CreateSent(self, class, pos, angles, freeze, data)
 			PhysicsBone       = 0,
 			WorldToLocal      = Vector(0, 0, 0),
 		}
-		if sent.t and sent.t.SpawnFunction then
-			entity = sent.t.SpawnFunction( sent.t, ply, mockTrace, class )
+
+			entity = stored_sent.t.SpawnFunction(stored_sent.t, self.player, mockTrace, class)
 		else
 			entity = ents.Create( class )
 			if IsValid(entity) then
@@ -352,7 +350,9 @@ function PropCore.CreateSent(self, class, pos, angles, freeze, data)
 			end
 		end
 
+		if IsValid(entity) then
 		gamemode.Call("PlayerSpawnedSENT", self.player, entity)
+	end
 	end
 
 	if not IsValid( entity ) then return NULL end
@@ -509,25 +509,21 @@ end
 __e2setcost(30)
 [nodiscard]
 e2function table sentGetData(string class)
-	local res = E2Lib.newE2Table()
+	local res = newE2Table()
 
 	local sent = list.Get("wire_spawnable_ents_registry")[class]
 	if not sent then self:throw("No class '"..class.."' found in sent registry", res) end
 
-	local size = 0
 	for key, tbl in pairs( sent ) do
 		if key=="_preFactory" or key=="_postFactory" then continue end
 
-		res.s[key] = E2Lib.newE2Table()
-		res.s[key].size = 2
-		res.s[key].s["type"] = typeIDToString(tbl[1])
-		res.s[key].s["default_value"] = sentDataFormatDefaultVal(tbl[2])
-		res.s[key].s["description"] = tbl[3] or "<no description>"
-		res.stypes[key] = "t"
-
-		size = size + 1
+		local subt = newE2Table({
+			type = typeIDToString(tbl[1]),
+			default_value = sentDataFormatDefaultVal(tbl[2]),
+			description = tbl[3] or "<no description>"
+		})
+		res:Set(key, subt)
 	end
-	res.size = size
 
 	return res
 end
@@ -540,11 +536,11 @@ e2function table sentGetData(string class, string key)
 	if not sent[key] then self:throw("Class '"..class.."' does not have any value at key '"..key.."'", "") end
 	if key=="_preFactory" or key=="_postFactory" then self:throw("Prohibited key '"..key.."'", "") end
 
-	local res = E2Lib.newE2Table()
-	res.s["type"] = typeIDToString(sent[key][1])
-	res.s["default_value"] = sentDataFormatDefaultVal(sent[key][2])
-	res.s["description"] = sent[key][3] or "<no description>"
-	res.size = 3
+	local res = newE2Table({
+		type = typeIDToString(tbl[1]),
+		default_value = sentDataFormatDefaultVal(tbl[2]),
+		description = tbl[3] or "<no description>"
+	})
 
 	return res
 end
@@ -554,19 +550,16 @@ end
 __e2setcost(25)
 [nodiscard]
 e2function table sentGetDataTypes(string class)
-	local res = E2Lib.newE2Table()
+	local res = newE2Table()
 
 	local sent = list.Get("wire_spawnable_ents_registry")[class]
 	if not sent then self:throw("No class '"..class.."' found in sent registry", res) end
 
-	local size = 0
 	for key, tbl in pairs( sent ) do
 		if key=="_preFactory" or key=="_postFactory" then continue end
 
-		res.s[key] = typeIDToString(tbl[1])
-		size = size + 1
+		res:Set(key, typeIDToString(tbl[1]))
 	end
-	res.size = size
 
 	return res
 end
@@ -587,19 +580,16 @@ end
 __e2setcost(25)
 [nodiscard]
 e2function table sentGetDataDefaultValues(string class)
-	local res = E2Lib.newE2Table()
+	local res = newE2Table()
 
 	local sent = list.Get("wire_spawnable_ents_registry")[class]
 	if not sent then self:throw("No class '"..class.."' found in sent registry", res) end
 
-	local size = 0
 	for key, tbl in pairs( sent ) do
 		if key=="_preFactory" or key=="_postFactory" then continue end
 
-		res.s[key] = sentDataFormatDefaultVal(tbl[2])
-		size = size + 1
+		res:Set(key, sentDataFormatDefaultVal(tbl[2]))
 	end
-	res.size = size
 
 	return res
 end
@@ -620,19 +610,16 @@ end
 __e2setcost(25)
 [nodiscard]
 e2function table sentGetDataDescriptions(string class)
-	local res = E2Lib.newE2Table()
+	local res = newE2Table()
 
 	local sent = list.Get("wire_spawnable_ents_registry")[class]
 	if not sent then self:throw("No class '"..class.."' found in sent registry", res) end
 
-	local size = 0
 	for key, tbl in pairs( sent ) do
 		if key=="_preFactory" or key=="_postFactory" then continue end
 
-		res.s[key] = tbl[3] or "<no description>"
-		size = size + 1
+		res:Set(key, tbl[3] or "<no description>")
 	end
-	res.size = size
 
 	return res
 end
@@ -781,17 +768,12 @@ e2function void entity:use()
 	if not ValidAction(self, this, "use") then return end
 
 	local ply = self.player
-	if not IsValid(ply) then return end -- if the owner isn't connected to the server, do nothing
-	if ply:InVehicle() and this:IsVehicle() then return end -- don't use a vehicle if you're in one
+	if not IsValid(ply) then return end
 
 	if hook.Run( "PlayerUse", ply, this ) == false then return end
 	if hook.Run( "WireUse", ply, this, self.entity ) == false then return end
 
-	if this.Use then
-		this:Use(ply,self.entity,USE_ON,0)
-	else
-		this:Fire("use","1",0)
-	end
+	this:Use(ply, self.entity)
 end
 
 __e2setcost(30)
@@ -851,9 +833,7 @@ end
 
 [nodiscard]
 e2function number entity:propCanSetDupeable()
-	local isOk, Val = pcall(ValidAction, self, this, "noDupe")
-	if not isOk then return 0 end
-
+	if not IsValid(this) then return self:throw("Invalid entity!", 0) end
 	return canMarkDupeable(this, self.player) and 1 or 0
 end
 
@@ -952,7 +932,7 @@ e2function void entity:propSetFriction(number friction)
 end
 
 e2function number entity:propGetFriction()
-	if not ValidAction(self, this, "friction") then return 0 end
+	if not IsValid(this) then return self:throw("Invalid entity!", 0) end
 	return this:GetFriction()
 end
 
@@ -980,10 +960,9 @@ e2function void entity:propPhysicalMaterial(string physprop)
 end
 
 e2function string entity:propPhysicalMaterial()
-	if not ValidAction(self, this, "physprop") then return "" end
+	if not IsValid(this) then return self:throw("Invalid entity!", "") end
 	local phys = this:GetPhysicsObject()
-	if IsValid(phys) then return phys:GetMaterial() or "" end
-	return ""
+	return phys:IsValid() and phys:GetMaterial() or ""
 end
 
 e2function void entity:propSetVelocity(vector velocity)
@@ -1262,14 +1241,14 @@ e2function void entity:ragdollSetAng(angle rot)
 end
 
 e2function table entity:ragdollGetPose()
-	if not ValidAction(self, this) then return end
-	local pose = E2Lib.newE2Table()
+	if not IsValid(this) then return self:throw("Invalid entity!", newE2Table()) end
+	local pose = newE2Table()
 	local bones = GetBones(this)
 	local originPos, originAng = bones[0]:GetPos(), bones[0]:GetAngles()
 	local size = 0
 	
 	for k, bone in pairs(bones) do
-		local value = E2Lib.newE2Table()
+		local value = newE2Table()
 		local pos, ang = WorldToLocal(bone:GetPos(), bone:GetAngles(), originPos, originAng)
 		
 		value.n[1] = pos
@@ -1502,8 +1481,6 @@ local typefilter = {
 	vector = "v",
 	number = "n",
 }
-
-local newE2Table = E2Lib.newE2Table
 
 __e2setcost(20)
 

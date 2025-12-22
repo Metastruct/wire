@@ -33,7 +33,7 @@ if SERVER then
 	AddCSLuaFile("wire/wiremonitors.lua")
 	AddCSLuaFile("wire/gpulib.lua")
 	AddCSLuaFile("wire/timedpairs.lua")
-	AddCSLuaFile("wire/default_data_decompressor.lua")
+	AddCSLuaFile("wire/default_data_generator.lua")
 	AddCSLuaFile("wire/flir.lua")
 	AddCSLuaFile("wire/von.lua")
 	AddCSLuaFile("wire/sh_modelplug.lua")
@@ -77,16 +77,16 @@ include("wire/wiregates.lua")
 include("wire/wiremonitors.lua")
 include("wire/gpulib.lua")
 include("wire/timedpairs.lua")
-include("wire/default_data_decompressor.lua")
+include("wire/default_data_generator.lua")
 include("wire/flir.lua")
 include("wire/von.lua")
 
 -- server includes
 if SERVER then
 	include("wire/server/wirelib.lua")
-	include("wire/server/modelplug.lua")
 	include("wire/server/debuggerlib.lua")
 	include("wire/server/sents_registry.lua")
+	include("wire/server/wire_map_interface.lua")
 
 	if CreateConVar("wire_force_workshop", "1", FCVAR_ARCHIVE, "Should Wire force all clients to download the Workshop edition of Wire, for models? (requires restart to disable)"):GetBool() then
 		if select(2, WireLib.GetVersion()):find("Workshop", 1, true) then

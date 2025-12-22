@@ -184,19 +184,25 @@ end
 -- rather than doing it in PANEL:Init()
 ----------------------------------------------------------------------
 function PANEL:SetupSearchbox()
-	local clearsearch = vgui.Create( "DImageButton", self.SearchBox )
-	clearsearch:SetMaterial( "icon16/cross.png" )
-	local src = self.SearchBox
-	function clearsearch:DoClick()
-		src:SetValue( "" )
-		src:OnTextChanged()
-		src:SetValue( "Search..." )
+	local clearsearch = vgui.Create("DImageButton", self.SearchBox)
+	clearsearch:SetMaterial("icon16/cross.png")
+	clearsearch:SetVisible(false)
+
+	local searchbox = self.SearchBox
+	searchbox.clearsearch = clearsearch
+
+	local performLayoutOld = searchbox.PerformLayout
+
+	function searchbox:PerformLayout(w, h)
+		performLayoutOld(self, w, h)
+		clearsearch:SetSize(16, 16)
+		clearsearch:SetPos(self:GetWide() - 16 - 2, h / 2 - 8)
 	end
-	clearsearch:DockMargin( 2,2,4,2 )
-	clearsearch:Dock( RIGHT )
-	clearsearch:SetSize( 14, 10 )
-	clearsearch:SetVisible( false )
-	self.SearchBox.clearsearch = clearsearch
+
+	function clearsearch:DoClick()
+		searchbox:SetText("")
+		searchbox:OnTextChanged("")
+	end
 
 	-- OnEnter
 	local parent = self
@@ -579,15 +585,23 @@ function PANEL:AddCategory( Name, Label, tItems, CategoryID )
 		end
 
 		local parent = self
+
 		function item:DoRightClick()
 			local menu = DermaMenu()
 
 			local b = cookie.GetNumber( self.WireFavouritesCookieText )
+
+			local copy = menu:AddOption("Copy to clipboard", function() SetClipboardText(self.Name) end)
+			copy:SetIcon("icon16/page_copy.png")
+
 			if b and b == 1 then
-				menu:AddOption( "Remove from favourites", function() cookie.Set( self.WireFavouritesCookieText, 0 ) parent:ReloadEverything() end )
+				local option = menu:AddOption( "Remove from favourites", function() cookie.Set( self.WireFavouritesCookieText, 0 ) parent:ReloadEverything() end )
+				option:SetIcon("icon16/star.png")
 			else
-				menu:AddOption( "Add to favourites", function() cookie.Set( self.WireFavouritesCookieText, 1 ) parent:ReloadEverything() end )
+				local option = menu:AddOption( "Add to favourites", function() cookie.Set( self.WireFavouritesCookieText, 1 ) parent:ReloadEverything() end )
+				option:SetIcon("icon16/star.png")
 			end
+
 			menu:Open()
 
 			return true

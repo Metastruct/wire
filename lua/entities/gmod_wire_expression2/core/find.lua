@@ -456,8 +456,8 @@ end
 --- Returns the player with the given name, this is an exception to the rule
 [nodiscard]
 e2function entity findPlayerByName(string name)
-	if query_blocked(self, 1) then return nil end
-	return findPlayer(name)
+	if query_blocked(self, 1) then return NULL end
+	return findPlayer(name) or NULL
 end
 
 --- Returns the player with the given SteamID
@@ -804,26 +804,26 @@ end
 --- Returns the indexed entity from the previous find event (valid parameters are 1 to the number of entities found)
 [nodiscard]
 e2function entity findResult(index)
-	return self.data.findlist[index]
+	return self.data.findlist[index] or NULL
 end
 
 --- Returns the closest entity to the given point from the previous find event
 [nodiscard]
 e2function entity findClosest(vector position)
-	local closest = nil
-	local dist = math.huge
+	local closest, dist = NULL, math.huge
 	self.prf = self.prf + #self.data.findlist * 10
+
 	for _,ent in pairs(self.data.findlist) do
 		if IsValid(ent) then
-			local pos = ent:GetPos()
-			local xd, yd, zd = pos.x-position[1], pos.y-position[2], pos.z-position[3]
-			local curdist = xd*xd + yd*yd + zd*zd
+			local curdist = ent:GetPos():Distance(position)
+
 			if curdist < dist then
 				closest = ent
 				dist = curdist
 			end
 		end
 	end
+
 	return closest
 end
 
@@ -841,7 +841,7 @@ end
 --- Equivalent to findResult(1)
 [nodiscard]
 e2function entity find()
-	return self.data.findlist[1]
+	return self.data.findlist[1] or NULL
 end
 
 --[[************************************************************************]]--
