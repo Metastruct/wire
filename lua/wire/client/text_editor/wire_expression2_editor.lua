@@ -1461,10 +1461,16 @@ Text here]# ]]
 
 				local label = vgui.Create("DLabel", panel)
 				local idx = v:EntIndex()
-
 				local ownerStr
-				if CPPI and v:CPPIGetOwner():GetName() ~= nick then
-					ownerStr = string.format("Owner: %s | Code Author: %s", v:CPPIGetOwner():GetName(), nick)
+
+				if CPPI then
+					local owner = v:CPPIGetOwner()
+
+					if IsValid(owner) and owner:Nick() ~= nick then
+						ownerStr = string.format("Owner: %s | Code Author: %s", owner:Nick(), nick)
+					else
+						ownerStr = "Owner: " .. nick
+					end
 				else
 					ownerStr = "Owner: " .. nick
 				end
@@ -1780,11 +1786,9 @@ function Editor:SetV(bool)
 	self:SetVisible(bool)
 	self:SetKeyboardInputEnabled(bool)
 	self:GetParent():SetWorldClicker(wire_expression2_editor_worldclicker:GetBool() and bool) -- Enable this on the background so we can update E2's without closing the editor
-	if CanRunConsoleCommand() then
-		RunConsoleCommand("wire_expression2_event", bool and "editor_open" or "editor_close")
-		if not e2_function_data_received and bool then -- Request the E2 functions
-			RunConsoleCommand("wire_expression2_sendfunctions")
-		end
+	RunConsoleCommand("wire_expression2_event", bool and "editor_open" or "editor_close")
+	if not e2_function_data_received and bool then -- Request the E2 functions
+		RunConsoleCommand("wire_expression2_sendfunctions")
 	end
 end
 
