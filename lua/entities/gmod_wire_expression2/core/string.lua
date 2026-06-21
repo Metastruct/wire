@@ -231,16 +231,17 @@ end
 
 __e2setcost(2)
 
+-- E2Lib.PreProcessor trimming functions are much more efficient than regular ones, so it's better to use them
 e2function string string:trim()
-	return this:Trim()
+	return E2Lib.PreProcessor.Trim(nil, this)
 end
 
 e2function string string:trimLeft()
-	return this:TrimLeft()
+	return E2Lib.PreProcessor.TrimLeft(nil, this)
 end
 
 e2function string string:trimRight()
-	return this:TrimRight()
+	return E2Lib.PreProcessor.TrimRight(nil, this)
 end
 
 --[[******************************************************************************]]--
@@ -250,6 +251,7 @@ __e2setcost(10)
 --- Returns the 1st occurrence of the string <pattern>, returns 0 if not found. Prints malformed string errors to the chat area.
 e2function number string:findRE(string pattern)
 	local ok, ret = pcall(function() WireLib.CheckRegex(this, pattern) return string_find(this, pattern) end)
+
 	if not ok then
 		return self:throw(ret, 0)
 	else
@@ -260,6 +262,7 @@ end
 ---  Returns the 1st occurrence of the string <pattern> starting at <start> and going to the end of the string, returns 0 if not found. Prints malformed string errors to the chat area.
 e2function number string:findRE(string pattern, start)
 	local ok, ret = pcall(function() WireLib.CheckRegex(this, pattern) return string_find(this, pattern, start) end)
+
 	if not ok then
 		return self:throw(ret, 0)
 	else
