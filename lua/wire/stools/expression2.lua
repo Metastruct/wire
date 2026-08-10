@@ -946,7 +946,7 @@ if CLIENT then
 			name = string.sub(name, 1, -2)
 		end
 
-		name = string.Trim(name) .. "..."
+		name = WireLib.Trim(name) .. "..."
 	end
 
 	function Expression2SetProgress(p, p2, w)

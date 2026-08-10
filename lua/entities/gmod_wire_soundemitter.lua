@@ -32,7 +32,7 @@ function ENT:Initialize()
 	self.Volume = 100
 	self.Level = 80
 	self.Pitch = 100
-	self.sound = self.Samples[1]
+	self.sound = "synth/brown_noise.wav"
 	-- self.sound is a string, self.SoundObj is a CSoundPatch
 
 	self.NeedsRefresh = true
@@ -117,11 +117,11 @@ function ENT:TriggerInput(iname, value)
 		self.Active = false
 		self:StopSounds()
 	elseif iname == "Volume" then
-		self.Volume = math.Clamp(math.floor(value*100), 0.0, 100.0)
+		self.Volume = math.floor(value * 100)
 	elseif iname == "Level" then
-		self.Level = math.Clamp(value, 55.0, 165.0)
+		self.Level = value
 	elseif iname == "PitchRelative" then
-		self.Pitch = math.Clamp(math.floor(value*100), 0, 255)
+		self.Pitch = math.floor(value * 100)
 	elseif iname == "Sample" then
 		self:TriggerInput("SampleName", self.Samples[value] or self.Samples[1])
 	elseif iname == "SampleName" then
@@ -157,9 +157,10 @@ function ENT:UpdateSound()
 
 		if self.Active then self:StartSounds() end
 	end
-	self.SoundObj:ChangePitch(self.Pitch, 0)
-	self.SoundObj:ChangeVolume(self.Volume / 100.0, 0)
-	self.SoundObj:SetSoundLevel(self.Level)
+
+	self.SoundObj:ChangePitch(math.Clamp(self.Pitch, 0, 255), 0)
+	self.SoundObj:ChangeVolume(math.Clamp(self.Volume / 100, 0, 1), 0)
+	self.SoundObj:SetSoundLevel(WireLib.ClampSoundLevel(self.Level))
 end
 
 function ENT:SetSound(soundName)
