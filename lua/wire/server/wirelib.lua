@@ -898,25 +898,34 @@ do -- class OutputIterator
 	OutputIterator.__index = OutputIterator
 
 	function OutputIterator:Add(ent, iname, value)
-		table.insert(self, { Entity = ent, IName = iname, Value = value })
+		local last = self.last + 1
+
+		self.last = last
+		self[last] = { Entity = ent, IName = iname, Value = value }
 	end
 
 	function OutputIterator:Process()
 		if self.Processing then return end -- should not occur
 		self.Processing = true
 
-		while #self > 0 do
-			local nextelement = self[1]
-			table.remove(self, 1)
+		while self.first <= self.last do
+			local first = self.first
+			local nextelement = self[first]
+
+			self[first] = nil
+			self.first = first + 1
 
 			WireLib.TriggerInput(nextelement.Entity, nextelement.IName, nextelement.Value, self)
 		end
+
+		self.first = 1
+		self.last = 0
 
 		self.Processing = nil
 	end
 
 	function WireLib.CreateOutputIterator()
-		return setmetatable({}, OutputIterator)
+		return setmetatable({ first = 1, last = 0 }, OutputIterator)
 	end
 end -- class OutputIterator
 
@@ -1639,6 +1648,27 @@ function WireLib.SoundExists(path, ply)
 	end
 
 	return path
+end
+
+local uniqueFontsTbl = setmetatable({}, {__index=function(t,k) local r={[1]=0} t[k]=r return r end})
+local maxUniqueFonts = CreateConVar("wire_fonts_unique_max", "50", FCVAR_ARCHIVE, "The maximum number of fonts a player is allowed to create", 0)
+
+function WireLib.CheckFont(font, ply)
+	if ply then
+		-- A player can only create a certain number of fonts
+		local playerFonts = uniqueFontsTbl[ply:SteamID()]
+
+		if not playerFonts[font] then
+			if playerFonts[1] >= maxUniqueFonts:GetInt() then
+				return
+			end
+
+			playerFonts[font] = true
+			playerFonts[1] = playerFonts[1] + 1
+		end
+	end
+
+	return font
 end
 
 -- Notify --

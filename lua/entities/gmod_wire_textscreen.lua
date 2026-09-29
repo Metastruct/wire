@@ -230,10 +230,9 @@ function ENT:Setup(DefaultText, chrPerLine, textJust, valign, tfont, fgcolor, bg
 	self.chrPerLine = math.Clamp(math.ceil(chrPerLine or 10), 1, 15)
 	self.textJust = textJust or 1
 	self.valign = valign or 0
-	self.tfont = tfont or "Arial"
-	self:SendConfig()
-
+	self.tfont = tfont and string.sub(tfont, 1, 32) or "Arial"
 	self:TriggerInput("String", DefaultText or "")
+	self:SendConfig()
 end
 
 function ENT:TriggerInput(iname, value)
@@ -241,7 +240,7 @@ function ENT:TriggerInput(iname, value)
 		self.text = string.sub(tostring(value), 1, 1024)
 		self.doSendText = true
 	elseif iname == "Font" then
-		self.tfont = tostring(value)
+		self.tfont = string.sub(tostring(value), 1, 32)
 		self.doSendConfig = true
 	elseif iname == "FGColor" then
 		self.fgcolor = Color(value.x, value.y, value.z)
@@ -274,10 +273,22 @@ function ENT:Think()
 end
 
 function ENT:SendConfig(ply)
+	local ply = self:GetPlayer()
+	if not ply:IsValid() then return end
+
 	self.doSendConfig = false
+
+	local font = self.tfont
+	local size = self.chrPerLine
+
+	if not WireLib.CheckFont(font .. math.floor(760 / size), ply) then
+		font = "Arial"
+		size = 10
+	end
+
 	WireLib.netStart(self)
 		net.WriteBit(true) -- Sending Config
-		net.WriteUInt(self.chrPerLine, 4)
+		net.WriteUInt(size, 4)
 		net.WriteUInt(self.textJust, 2)
 		net.WriteUInt(self.valign, 2)
 
@@ -288,7 +299,7 @@ function ENT:SendConfig(ply)
 		net.WriteUInt(self.bgcolor.r, 8)
 		net.WriteUInt(self.bgcolor.g, 8)
 		net.WriteUInt(self.bgcolor.b, 8)
-		net.WriteString(string.sub(self.tfont,0,31))
+		net.WriteString(font)
 	WireLib.netEnd(ply)
 end
 
