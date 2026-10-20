@@ -77,8 +77,12 @@ function string.GetNormalizedFilepath( path ) -- luacheck: ignore
 	return table.concat(tbl, "/")
 end
 
--- Cheaper string.Trim* functions
-function WireLib.Trim(line)
+-- Cheaper string.Trim* functions (when pattern is not used)
+function WireLib.Trim(line, char)
+	if char then
+		return string.Trim(line, char)
+	end
+
 	local length = #line
 	local first
 
@@ -109,7 +113,11 @@ function WireLib.Trim(line)
 	return string_sub(line, first, last)
 end
 
-function WireLib.TrimLeft(line)
+function WireLib.TrimLeft(line, char)
+	if char then
+		return string.TrimLeft(line, char)
+	end
+
 	for i = 1, #line do
 		local b = string_byte(line, i)
 
@@ -121,7 +129,11 @@ function WireLib.TrimLeft(line)
 	return ""
 end
 
-function WireLib.TrimRight(line)
+function WireLib.TrimRight(line, char)
+	if char then
+		return string.TrimRight(line, char)
+	end
+
 	for i = #line, 1, -1 do
 		local b = string_byte(line, i)
 
@@ -550,6 +562,21 @@ elseif CLIENT then
 	net.Receive("wire_netmsg_registered", function(netlen)
 		local self = net.ReadEntity()
 		if IsValid(self) and self.Receive then self:Receive() end
+	end)
+end
+
+if SERVER then
+	util.AddNetworkString("wire_set_convar")
+
+	function WireLib.SetConvar(ply, convar, value)
+		net.Start("wire_set_convar")
+		net.WriteString(convar)
+		net.WriteString(tostring(value))
+		net.Send(ply)
+	end
+else
+	net.Receive("wire_set_convar", function()
+		RunConsoleCommand(net.ReadString(), net.ReadString())
 	end)
 end
 
